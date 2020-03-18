@@ -5,9 +5,10 @@ use std::process;
 use hyper::Server;
 use hyper::rt::Future;
 use log::{error, info};
+use mongodb::{Client}
 
 use crate::config::Config;
-
+use crate::mongodb::{client_from_str}
 mod config;
 mod http;
 
@@ -37,15 +38,15 @@ impl Lako {
 
     pub fn run(&self) {
         info!("Starting Lako");
+        let conn_str: &str = self.config.server.mongodb[..]
+        let client = match client_from_str(conn_str) {
+            Ok(client) => client,
+            Err(e)  => {
+                error!("Failed to connect to mongodb: {}", e);
+                process::exit(0x0100);
+            }
+        }
 
-        let addr = self.config.server.address.parse().unwrap();
-
-        let server = Server::bind(&addr)
-            .serve(http::router_service)
-            .map_err(|e| eprintln!("server error: {}", e));
-
-        info!("Listening on http://{}", addr);
-
-        hyper::rt::run(server);
+        gotham::start(self.config.server.address, http::router(client))
     }
 }

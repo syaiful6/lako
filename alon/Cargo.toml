@@ -1,0 +1,36 @@
+[package]
+name = "alon"
+version = "0.1.0"
+authors = ["Syaiful Bahri <sbahri@indo-soft.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+log = "0.4"
+hyper = "0.12"
+serde = "1.0"
+serde_derive = "1.0"
+bincode = "1.0"
+mime = "0.3"
+# Using alpha version of mime_guess until mime crate stabilizes (releases 1.0).
+# see https://github.com/hyperium/mime/issues/52
+mime_guess = "2.0.0-alpha.6"
+futures = "0.1"
+tokio = "0.1"
+bytes = "0.4"
+mio = "0.6"
+borrow-bag = "1.0"
+url = "1.7"
+uuid = { version = "0.7", features = ["v4"] }
+chrono = "0.4"
+base64 = "0.10"
+rand = "0.6"
+rand_chacha = "0.1"
+linked-hash-map = "0.5"
+num_cpus = "1.8"
+regex = "1.0"
+cookie = "0.12"
+http = "0.1"
+httpdate = "0.3"
+failure = "0.1"

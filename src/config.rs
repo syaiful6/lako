@@ -1,15 +1,10 @@
-use std::collections::HashMap;
 use std::fmt;
 
 use clap::{App, Arg};
-use log::error;
 use serde_derive::{Deserialize, Serialize};
 
 // Server default address
-const DEFAULT_SERVER_ADDRESS: &str = "0.0.0.0:9999";
-
-// environment variables
-pub const LAKO_MONGODB_URL: &str = "LAKO_MONGODB_URL";
+const DEFAULT_SERVER_ADDRESS: &str = "0.0.0.0:8000";
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Config {
@@ -19,7 +14,6 @@ pub struct Config {
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub struct Server {
     pub address: String,
-    pub mongodb: String,
 }
 
 impl Config {
@@ -52,7 +46,7 @@ impl fmt::Display for ConfigurationError {
 
 // Loads the configuration file from command
 pub fn load_configuration() -> Result<Config, ConfigurationError> {
-    let matches = App::new("Deploy")
+    let matches = App::new("Lako")
         .version("0.0.1")
         .about("Project management tools")
         .arg(
@@ -65,27 +59,26 @@ pub fn load_configuration() -> Result<Config, ConfigurationError> {
                 .required(true),
         )
         .get_matches();
-    
+
     let address = matches.value_of("address").unwrap().to_string();
-    
-    // check for configuration on the env
-    let mongodb_conn: String = match env::var(LAKO_MONGODB_URL) {
-        Ok(val)  => val,
-        Err(err) => {
-            return Err(ConfigurationError::new(&format!(
-                "No meta bucket endpoint environment variable `{}` set. {}",
-                LAKO_MONGODB_URL,
-                e
-            )))
-        }
-    }
+
+    // // check for configuration on the env
+    // let mongodb_conn: String = match env::var(LAKO_MONGODB_URL) {
+    //     Ok(val)  => val,
+    //     Err(err) => {
+    //         return Err(ConfigurationError::new(&format!(
+    //             "No meta bucket endpoint environment variable `{}` set. {}",
+    //             LAKO_MONGODB_URL,
+    //             e
+    //         )))
+    //     }
+    // }
 
     let server = Server {
         address,
-        mongodb
     };
 
     let configuration = Config::new(server);
-    
+
     Ok(configuration)
 }

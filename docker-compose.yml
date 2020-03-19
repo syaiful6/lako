@@ -1,0 +1,44 @@
+version: "3"
+services:
+  db:
+    image: postgres:9.6-alpine
+    environment:
+      POSTGRES_DB: lako
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: secret
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    labels:
+      - traefik.enable=false
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile-local
+    environment:
+      RUST_LOG: trace
+      DATABASE_URL: postgres://postgres:secret@db/lako
+    networks:
+      - frontend-network
+      - default
+    depends_on:
+      - db
+    volumes:
+      - ./:/app
+      - cargo_cache:/usr/local/cargo/registry
+    labels:
+      - traefik.http.routers.web.rule=Host(`lako.thatiq.localdev`)
+      - traefik.http.routers.web.entrypoints=http
+      - traefik.http.routers.web.middlewares=redirect@file
+      - traefik.http.routers.web-secured.rule=Host(`lako.thatiq.localdev`)
+      - traefik.http.routers.web-secured.entrypoint=https
+      - traefik.http.routers.web-secured.tls=true
+      - traefik.docker.network=frontend-network
+      - traefik.port=8000
+volumes:
+  postgres_data:
+  cargo_cache:
+networks:
+  frontend-network:
+    external:
+      name: frontend-network
+

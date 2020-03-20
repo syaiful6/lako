@@ -3,6 +3,7 @@ FROM rust:1.42-slim-buster
 RUN set -ex; \
   apt-get update; \
   apt-get install -y --no-install-recommends \
+    gosu \
     openssl \
     libpq5 \
     libpq-dev \
@@ -10,10 +11,15 @@ RUN set -ex; \
   \
   cargo install diesel_cli --no-default-features --features postgres
 
+# create user for running this application
+RUN set -ex; \
+  groupadd --gid 1000 rust && \
+  useradd --uid 1000 --gid rust --shell /bin/bash --create-home rust
+
 COPY docker-entrypoint.sh /usr/local/docker-entrypoint.sh
 EXPOSE 8000
 
 COPY ./ /app
 WORKDIR /app
 
-CMD ["cargo", "run"]
+CMD ["gosu", "rust", "cargo", "run"]

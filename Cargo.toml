@@ -7,14 +7,19 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+bcrypt = "0.6.2"
 clap = "2.33.0"
 chrono = { version = "0.4.11", features = ["serde"] }
 diesel = { version = "1.4.3", features = ["postgres", "serde_json", "chrono", "r2d2"] }
+failure = "0.1.1"
 futures = "0.1.27"
 gotham = "0.4.0"
 gotham_derive = "0.4.0"
+gotham_middleware_diesel = "0.1.0"
 hyper = "0.12"
 mime = "0.3"
+lettre = "0.9"
+lettre_email = "0.9"
 log = "0.4.8"
 tokio = "0.1"
 pretty_env_logger = "0.4"

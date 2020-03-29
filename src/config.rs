@@ -1,4 +1,5 @@
 use std::fmt;
+use std::env;
 
 use clap::{App, Arg};
 use serde_derive::{Deserialize, Serialize};
@@ -14,6 +15,7 @@ pub struct Config {
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub struct Server {
     pub address: String,
+    pub db_url: String,
 }
 
 impl Config {
@@ -61,21 +63,20 @@ pub fn load_configuration() -> Result<Config, ConfigurationError> {
         .get_matches();
 
     let address = matches.value_of("address").unwrap().to_string();
-
-    // // check for configuration on the env
-    // let mongodb_conn: String = match env::var(LAKO_MONGODB_URL) {
-    //     Ok(val)  => val,
-    //     Err(err) => {
-    //         return Err(ConfigurationError::new(&format!(
-    //             "No meta bucket endpoint environment variable `{}` set. {}",
-    //             LAKO_MONGODB_URL,
-    //             e
-    //         )))
-    //     }
-    // }
+    
+    let db_url: String = match env::var("DATABASE_URL") {
+        Ok(val)  => val,
+        Err(err) => {
+            return Err(ConfigurationError::new(&format!(
+                "No Database URL environment variable `DATABASE_URL` set. {}",
+                err
+            )))
+        }
+    };
 
     let server = Server {
         address,
+        db_url,
     };
 
     let configuration = Config::new(server);

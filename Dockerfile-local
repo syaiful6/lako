@@ -5,8 +5,10 @@ RUN set -ex; \
   apt-get install -y --no-install-recommends \
     gosu \
     openssl \
+    libssl-dev \
     libpq5 \
     libpq-dev \
+    pkg-config \
   ; \
   \
   cargo install diesel_cli --no-default-features --features postgres
@@ -22,4 +24,4 @@ EXPOSE 8000
 COPY ./ /app
 WORKDIR /app
 
-CMD ["gosu", "rust", "cargo", "run"]
+CMD ["cargo", "run"]

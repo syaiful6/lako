@@ -1,7 +1,7 @@
 use std::error;
 use std::fmt;
 
-use bcrypt::{DEFAULT_COST, hash as bcrypt_hash, BcryptError};
+use bcrypt::{DEFAULT_COST, hash as bcrypt_hash, verify as bcrypt_verify, BcryptError};
 use diesel::prelude::*;
 use diesel::{self, insert_into};
 use crate::models::email::{NewEmail};
@@ -18,7 +18,16 @@ pub enum AuthenticationError {
 
 impl fmt::Display for AuthenticationError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "authentication error")
+        write!(
+            f,
+            "authentication error: {}",
+            match *self {
+                AuthenticationError::IncorrectPassword => "incorrect password",
+                AuthenticationError::NoUsernameSet     => "no username set",
+                AuthenticationError::NoPasswordSet     => "no password set",
+                _                                      => "internal error",
+            }
+        )
     }
 }
 
@@ -50,6 +59,41 @@ pub struct User {
     pub username: String,
     pub profile_name: String,
     pub profile_image: String,
+}
+
+// user with credential
+#[derive(Queryable)]
+pub struct UserWithPassword {
+    user: User,
+    password: String,
+}
+
+pub fn try_user_login(
+    conn: &PgConnection,
+    username: &str,
+    password: &str,
+) -> Result<Option<User>, AuthenticationError> {
+    let user_and_password = users::table
+        .filter(users::username.eq(username))
+        .select(
+            (
+                (users::id, users::username, users::profile_name, users::profile_image),
+                users::hashed_password,
+            ),
+        )
+        .first::<UserWithPassword>(conn)
+        .optional()
+        .map_err(AuthenticationError::DatabaseError)?;
+
+    if let Some(user_and_password) = user_and_password {
+        if bcrypt_verify(password, &user_and_password.password)? {
+            Ok(Some(user_and_password.user))
+        } else {
+            Err(IncorrectPassword)
+        }
+    } else {
+        Ok(None)
+    }
 }
 
 pub fn register_user(

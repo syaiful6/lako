@@ -23,7 +23,8 @@ services:
     depends_on:
       - db
     volumes:
-      - ./:/app
+      - ./src:/app/src
+      - target_cache:/app/target
       - cargo_cache:/usr/local/cargo/registry
     labels:
       - traefik.http.routers.lako.rule=Host(`lako.thatiq.localdev`)
@@ -37,6 +38,7 @@ services:
 volumes:
   postgres_data:
   cargo_cache:
+  target_cache:
 networks:
   frontend-network:
     external:

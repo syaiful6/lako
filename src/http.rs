@@ -4,7 +4,7 @@ use gotham_middleware_diesel::DieselMiddleware;
 use gotham::state::State;
 
 use crate::db::{Repo};
-use crate::routes::auth::{register_user_handler};
+use crate::routes::auth::{register_user_handler, login_user_handler};
 
 const HELLO_WORLD: &str = "Hello World!";
 
@@ -21,6 +21,7 @@ pub fn router(repo: Repo) -> Router {
         route.get("/").to(say_hello);
         route.scope("/private", |route| {
             route.post("/register").to(register_user_handler);
+            route.post("/login").to(login_user_handler);
         });
     })
 }

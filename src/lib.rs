@@ -5,6 +5,9 @@ extern crate diesel;
 #[macro_use]
 extern crate gotham_derive;
 
+#[macro_use]
+extern crate validator_derive;
+
 use std::process;
 use log::{error, info};
 

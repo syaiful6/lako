@@ -106,22 +106,18 @@ pub fn login_user_handler(mut state: State) -> Box<HandlerFuture> {
                 )
             }).map_err(|e| e.into_handler_error().with_status(StatusCode::BAD_REQUEST))
         })
-        .then(|result| match result {
-            Ok(user) => match user {
-                Some(user) => {
-                    let body = serde_json::to_string(&R { id: user.id })
+        .then(|result| {
+            if let Ok(Some(user)) = result {
+                let body = serde_json::to_string(&R { id: user.id })
                     .expect("Failed to serialize users");
-                    let res = create_response(&state, StatusCode::OK, mime::APPLICATION_JSON, body);
-                    future::ok((state, res))
-                },
-                _ => {
-                    let body = serde_json::to_string(&LoginErr{ message: "invalid username or password" })
+                let res = create_response(&state, StatusCode::OK, mime::APPLICATION_JSON, body);
+                future::ok((state, res))
+            } else {
+                let body = serde_json::to_string(&LoginErr{ message: "invalid username or password" })
                         .expect("Failed to serialize error");
-                    let res = create_response(&state, StatusCode::BAD_REQUEST, mime::APPLICATION_JSON, body);
-                    future::ok((state, res))
-                }
+                let res = create_response(&state, StatusCode::BAD_REQUEST, mime::APPLICATION_JSON, body);
+                future::ok((state, res))
             }
-            Err(e) => future::err((state, e))
         });
 
     Box::new(f)

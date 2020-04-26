@@ -12,6 +12,7 @@ table! {
 table! {
     users (id) {
         id -> Int4,
+        role -> Int2,
         username -> Varchar,
         hashed_password -> Varchar,
         profile_name -> Varchar,

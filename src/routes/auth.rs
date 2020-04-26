@@ -6,9 +6,11 @@ use gotham::helpers::http::response::create_response;
 use hyper::StatusCode;
 use validator::Validate;
 
+use crate::auth::encode_token;
 use crate::db::Repo;
 use crate::routes::utils::extract_json;
 use crate::models::user::{register_user, try_user_login, AuthenticationError};
+use crate::sql_types::Role;
 
 #[derive(Debug, Deserialize, Validate)]
 struct NewUser {
@@ -22,7 +24,8 @@ struct NewUser {
     password2: String,    
 }
 
-// server /private/register
+/// server /private/register
+/// this route register user as customer
 pub fn register_user_handler(mut state: State) -> Box<HandlerFuture> {
     let repo = Repo::borrow_from(&state).clone();
 
@@ -54,6 +57,7 @@ pub fn register_user_handler(mut state: State) -> Box<HandlerFuture> {
                     user.username.to_ascii_lowercase().as_str(),
                     user.email.to_ascii_lowercase().as_str(),
                     user.password1.as_str(),
+                    &Role::Customer,
                 )
             }).map_err(|e| e.into_handler_error().with_status(StatusCode::BAD_REQUEST))
         })
@@ -80,16 +84,16 @@ struct LoginForm {
 
 #[derive(Debug, Serialize)]
 struct LoginErr {
-    message: &'static str,
+    message: String,
 }
 
-// serve /private/login
+/// serve /private/login
 pub fn login_user_handler(mut state: State) -> Box<HandlerFuture> {
     let repo = Repo::borrow_from(&state).clone();
 
     #[derive(Serialize)]
     struct R {
-        id: i32,
+        access: String,
     }
 
     let f = extract_json::<LoginForm>(&mut state)
@@ -108,12 +112,13 @@ pub fn login_user_handler(mut state: State) -> Box<HandlerFuture> {
         })
         .then(|result| {
             if let Ok(Some(user)) = result {
-                let body = serde_json::to_string(&R { id: user.id })
-                    .expect("Failed to serialize users");
+                let token = encode_token(user.id);
+                let body = serde_json::to_string(&R { access: token })
+                    .expect("Failed to serialize token");
                 let res = create_response(&state, StatusCode::OK, mime::APPLICATION_JSON, body);
                 future::ok((state, res))
             } else {
-                let body = serde_json::to_string(&LoginErr{ message: "invalid username or password" })
+                let body = serde_json::to_string(&LoginErr{ message: "invalid username or password".into() })
                         .expect("Failed to serialize error");
                 let res = create_response(&state, StatusCode::BAD_REQUEST, mime::APPLICATION_JSON, body);
                 future::ok((state, res))

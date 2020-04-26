@@ -6,6 +6,7 @@ use diesel::prelude::*;
 use diesel::{self, insert_into};
 use crate::models::email::{NewEmail};
 use crate::schema::{emails, users};
+use crate::sql_types::Role;
 
 #[derive(Debug)]
 pub enum AuthenticationError {
@@ -56,6 +57,7 @@ pub use self::AuthenticationError::{IncorrectPassword, NoPasswordSet, NoUsername
 #[derive(Clone, Debug, PartialEq, Eq, Queryable, Identifiable, AsChangeset, Associations)]
 pub struct User {
     pub id: i32,
+    pub role: Role,
     pub username: String,
     pub profile_name: String,
     pub profile_image: String,
@@ -77,7 +79,7 @@ pub fn try_user_login(
         .filter(users::username.eq(username))
         .select(
             (
-                (users::id, users::username, users::profile_name, users::profile_image),
+                (users::id, users::role, users::username, users::profile_name, users::profile_image),
                 users::hashed_password,
             ),
         )
@@ -101,6 +103,7 @@ pub fn register_user(
     username: &str,
     email: &str,
     password: &str,
+    role: &Role,
 ) -> Result<User, AuthenticationError> {
     let hashed_password = bcrypt_hash(password, DEFAULT_COST)?;
 
@@ -108,11 +111,12 @@ pub fn register_user(
         let user = insert_into(users::table)
             .values((
                 users::username.eq(username),
+                users::role.eq(role),
                 users::hashed_password.eq(hashed_password),
                 users::profile_name.eq(""),
                 users::profile_image.eq(""),
             ))
-            .returning((users::id, users::username, users::profile_name, users::profile_image))
+            .returning((users::id, users::role, users::username, users::profile_name, users::profile_image))
             .get_result::<User>(conn)
             .map_err(AuthenticationError::DatabaseError)?;
         

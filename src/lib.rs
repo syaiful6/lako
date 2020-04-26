@@ -13,6 +13,7 @@ use log::{error, info};
 
 use crate::config::Config;
 use crate::db::create_repo;
+pub mod auth;
 pub mod config;
 pub mod db;
 pub mod email;
@@ -20,7 +21,7 @@ pub mod http;
 pub mod models;
 pub mod routes;
 pub mod schema;
-
+pub mod sql_types;
 
 pub fn bootstrap() {
     let cfg = match config::load_configuration() {

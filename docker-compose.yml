@@ -17,8 +17,9 @@ services:
     environment:
       RUST_LOG: trace
       DATABASE_URL: postgres://postgres:secret@db/lako
+      JWT_SECRET_KEY: "_uoE-5<>/x['DS.?XsHnG9ZZY6&^XNR("
     networks:
-      - frontend-network
+      - proxy-frontend
       - default
     depends_on:
       - db
@@ -27,20 +28,20 @@ services:
       - target_cache:/app/target
       - cargo_cache:/usr/local/cargo/registry
     labels:
-      - traefik.http.routers.lako.rule=Host(`lako.thatiq.localdev`)
+      - traefik.http.routers.lako.rule=Host(`lako.bbox.localdev`)
       - traefik.http.routers.lako.entrypoints=http
       - traefik.http.routers.lako.middlewares=redirect@file
-      - traefik.http.routers.lako-secured.rule=Host(`lako.thatiq.localdev`)
+      - traefik.http.routers.lako-secured.rule=Host(`lako.bbox.localdev`)
       - traefik.http.routers.lako-secured.entrypoints=https
       - traefik.http.routers.lako-secured.tls=true
-      - traefik.docker.network=frontend-network
+      - traefik.docker.network=proxy-frontend
       - traefik.port=8000
 volumes:
   postgres_data:
   cargo_cache:
   target_cache:
 networks:
-  frontend-network:
+  proxy-frontend:
     external:
-      name: frontend-network
+      name: proxy-frontend
 

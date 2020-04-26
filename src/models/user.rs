@@ -4,6 +4,7 @@ use std::fmt;
 use bcrypt::{DEFAULT_COST, hash as bcrypt_hash, verify as bcrypt_verify, BcryptError};
 use diesel::prelude::*;
 use diesel::{self, insert_into};
+use serde_derive::{Deserialize, Serialize};
 use crate::models::email::{NewEmail};
 use crate::schema::{emails, users};
 use crate::sql_types::Role;
@@ -54,7 +55,7 @@ impl From<diesel::result::Error> for AuthenticationError {
 
 pub use self::AuthenticationError::{IncorrectPassword, NoPasswordSet, NoUsernameSet};
 
-#[derive(Clone, Debug, PartialEq, Eq, Queryable, Identifiable, AsChangeset, Associations)]
+#[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq, Queryable, Identifiable, AsChangeset, Associations)]
 pub struct User {
     pub id: i32,
     pub role: Role,
@@ -68,6 +69,17 @@ pub struct User {
 pub struct UserWithPassword {
     user: User,
     password: String,
+}
+
+pub fn find_user(conn: &PgConnection, id: i32) -> Result<Option<User>, AuthenticationError> {
+    users::table
+        .filter(users::id.eq(id))
+        .select(
+            (users::id, users::role, users::username, users::profile_name, users::profile_image),
+        )
+        .first::<User>(conn)
+        .optional()
+        .map_err(AuthenticationError::DatabaseError)
 }
 
 pub fn try_user_login(

@@ -643,6 +643,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "gotham_middleware_jwt"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "64345ab259d61ece2ee3bddc49028f16a9902de856b4733b4a4c697759170fee"
+dependencies = [
+ "futures",
+ "gotham",
+ "gotham_derive",
+ "hyper",
+ "jsonwebtoken",
+ "log",
+ "serde",
+ "serde_derive",
+]
+
+[[package]]
 name = "h2"
 version = "0.1.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -852,6 +868,7 @@ dependencies = [
  "gotham",
  "gotham_derive",
  "gotham_middleware_diesel",
+ "gotham_middleware_jwt",
  "hyper",
  "jsonwebtoken",
  "lettre",

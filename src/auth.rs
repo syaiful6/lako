@@ -25,7 +25,7 @@ impl Claims {
     }
 }
 
-fn get_jwt_secret_key() -> String {
+pub fn get_jwt_secret_key() -> String {
     match env::var("JWT_SECRET_KEY") {
         Ok(val)     => val,
         Err(e)      => {

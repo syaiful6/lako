@@ -106,6 +106,9 @@ pub fn try_user_login(
             Err(IncorrectPassword)
         }
     } else {
+        // run hashed here so it take times like existing username
+        let _ = bcrypt_hash(password, DEFAULT_COST)?;
+
         Ok(None)
     }
 }
@@ -150,4 +153,16 @@ pub fn register_user(
 
         Ok(user)
     })
+}
+
+/// verify an email address based on token
+pub fn verify_email_with_token(conn: &PgConnection, token: &str) -> Result<bool, AuthenticationError> {
+    use diesel::update;
+
+    let updated_rows = update(emails::table.filter(emails::token.eq(token)))
+        .set(emails::verified.eq(true))
+        .execute(conn)
+        .map_err(AuthenticationError::DatabaseError)?;
+
+    Ok(updated_rows > 0)
 }

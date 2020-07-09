@@ -32,7 +32,7 @@ pub fn init_smtp_config_vars() -> Option<SmtpConfig> {
     match (
         env::var("SMTP_USERNAME"),
         env::var("SMTP_PASSWORD"),
-        env::var("SMTP_SERVER"),
+        env::var("SMTP_SERVER")
     ) {
         (Ok(username), Ok(password), Ok(server)) => Some(SmtpConfig {
             username: username,

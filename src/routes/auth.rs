@@ -10,8 +10,10 @@ use validator::Validate;
 use crate::auth::{encode_token, Claims};
 use crate::db::Repo;
 use crate::routes::utils::extract_json;
-use crate::models::user::{register_user, try_user_login, find_user, AuthenticationError};
+use crate::routes::paths::TokenPath;
+use crate::models::user::{register_user, try_user_login, find_user, AuthenticationError, verify_email_with_token};
 use crate::sql_types::Role;
+
 
 #[derive(Debug, Deserialize, Validate)]
 struct NewUser {
@@ -25,7 +27,7 @@ struct NewUser {
     password2: String,    
 }
 
-/// server /api/v1/register
+/// server POST /api/v1/register
 /// this route register user as customer
 pub fn register_user_handler(mut state: State) -> Box<HandlerFuture> {
     let repo = Repo::borrow_from(&state).clone();
@@ -88,7 +90,7 @@ struct LoginErr {
     message: String,
 }
 
-/// serve /api/v1/login
+/// serve POST /api/v1/login
 pub fn login_user_handler(mut state: State) -> Box<HandlerFuture> {
     let repo = Repo::borrow_from(&state).clone();
 
@@ -129,7 +131,7 @@ pub fn login_user_handler(mut state: State) -> Box<HandlerFuture> {
     Box::new(f)
 }
 
-/// /api/v1/me
+/// GET /api/v1/me
 pub fn get_user(state: State) -> Box<HandlerFuture> {
     let repo = Repo::borrow_from(&state).clone();
     let token = AuthorizationToken::<Claims>::borrow_from(&state);
@@ -146,6 +148,38 @@ pub fn get_user(state: State) -> Box<HandlerFuture> {
             } else {
                 let body = serde_json::to_string(&LoginErr{ message: "invalid token".into() })
                         .expect("Failed to serialize error");
+                let res = create_response(&state, StatusCode::BAD_REQUEST, mime::APPLICATION_JSON, body);
+                future::ok((state, res))
+            }
+        });
+
+    Box::new(f)
+}
+
+#[derive(Debug, Serialize)]
+struct OkBool {
+    ok: bool,
+}
+
+/// PUT /api/v1/confirm/:token
+pub fn confirm_user_email(state: State) -> Box<HandlerFuture> {
+    let token = {
+        let path = TokenPath::borrow_from(&state).clone();
+        path.token.to_owned()
+    };
+    let repo = Repo::borrow_from(&state).clone();
+    
+    let f = repo.run(move |conn| verify_email_with_token(&conn, token.as_str()))
+        .then(move |result| match result {
+            Ok(b) => {
+                let body = serde_json::to_string(&OkBool{ok: b})
+                    .expect("Failed to serialize error");
+                let res = create_response(&state, StatusCode::OK, mime::APPLICATION_JSON, body);
+                future::ok((state, res))
+            }
+            Err(_) => {
+                let body = serde_json::to_string(&LoginErr{ message: "Email belonging to token not found.".into() })
+                    .expect("Failed to serialize error");
                 let res = create_response(&state, StatusCode::BAD_REQUEST, mime::APPLICATION_JSON, body);
                 future::ok((state, res))
             }

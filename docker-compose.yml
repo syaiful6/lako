@@ -1,7 +1,7 @@
 version: "3"
 services:
   db:
-    image: postgres:9.6-alpine
+    image: postgres:10.13-alpine
     environment:
       POSTGRES_DB: lako
       POSTGRES_USER: postgres
@@ -10,6 +10,19 @@ services:
       - postgres_data:/var/lib/postgresql
     labels:
       - traefik.enable=false
+  mailhog:
+    image: mailhog/mailhog:v1.0.0
+    networks:
+      - dock-net
+      - default
+    labels:
+      - traefik.http.routers.mailhog.rule=Host(`mailhog.bbox.localdev`)
+      - traefik.http.routers.mailhog.entrypoints=http
+      - traefik.http.routers.mailhog.middlewares=redirect@file
+      - traefik.http.routers.mailhog-secured.rule=Host(`mailhog.bbox.localdev`)
+      - traefik.http.routers.mailhog-secured.entrypoints=https
+      - traefik.http.routers.mailhog-secured.tls=true
+      - traefik.http.services.mailhog-secured.loadbalancer.server.port=8025
   app:
     build:
       context: .
@@ -18,8 +31,11 @@ services:
       RUST_LOG: trace
       DATABASE_URL: postgres://postgres:secret@db/lako
       JWT_SECRET_KEY: "_uoE-5<>/x['DS.?XsHnG9ZZY6&^XNR("
+      SMTP_USERNAME: "hamzah"
+      SMTP_PASSWORD: "secret"
+      SMTP_SERVER: "mailhog:1025"
     networks:
-      - proxy-frontend
+      - dock-net
       - default
     depends_on:
       - db
@@ -34,14 +50,13 @@ services:
       - traefik.http.routers.lako-secured.rule=Host(`lako.bbox.localdev`)
       - traefik.http.routers.lako-secured.entrypoints=https
       - traefik.http.routers.lako-secured.tls=true
-      - traefik.docker.network=proxy-frontend
       - traefik.port=8000
 volumes:
   postgres_data:
   cargo_cache:
   target_cache:
 networks:
-  proxy-frontend:
+  dock-net:
     external:
-      name: proxy-frontend
+      name: dock-net
 

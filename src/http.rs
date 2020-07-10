@@ -8,9 +8,10 @@ use gotham_middleware_jwt::JWTMiddleware;
 use crate::auth::{Claims, get_jwt_secret_key};
 use crate::db::{Repo};
 use crate::routes::auth::{
-    register_user_handler, login_user_handler, get_user, confirm_user_email
+    register_user_handler, login_user_handler, get_user, confirm_user_email,
+    regenerate_token_and_send,
 };
-use crate::routes::paths::TokenPath;
+use crate::routes::paths::{TokenPath, UserPath};
 
 const HELLO_WORLD: &str = "Hello World!";
 
@@ -38,16 +39,26 @@ pub fn router(repo: Repo) -> Router {
     
     build_router(default_chain, pipeline_set, |route| {
         route.get("/").to(say_hello);
+        // api routes
         route.scope("/api/v1", |route| {
+
             // public route
             route.post("/register").to(register_user_handler);
             route.post("/login").to(login_user_handler);
             route.put("/confirm/:token")
                 .with_path_extractor::<TokenPath>()
                 .to(confirm_user_email);
+
             // route that need to protected
             route.with_pipeline_chain(auth_chain, |route| {
                 route.get("/me").to(get_user);
+                
+                // scope user
+                route.scope("/user", |route| {
+                    route.put("/:id/resend")
+                        .with_path_extractor::<UserPath>()
+                        .to(regenerate_token_and_send);
+                });
             });
         });
     })

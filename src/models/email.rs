@@ -9,8 +9,8 @@ pub struct Email {
     pub id: i32,
     pub user_id: i32,
     pub email: String,
-    pub verified: bool,
     pub token: String,
+    pub verified: bool,
     pub token_generated_at: NaiveDateTime,
 }
 

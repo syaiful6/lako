@@ -1,10 +1,12 @@
 use std::env;
 use std::path::Path;
 
+use native_tls::TlsConnector;
 use failure::Fail;
 use lettre::file::FileTransport;
+use lettre::smtp::client::net::{ClientTlsParameters, DEFAULT_TLS_PROTOCOLS};
 use lettre::smtp::authentication::{Credentials, Mechanism};
-use lettre::smtp::SmtpClient;
+use lettre::smtp::{SmtpClient, ClientSecurity, SUBMISSION_PORT};
 use lettre::{SendableEmail, Transport};
 
 use lettre_email::Email;
@@ -14,6 +16,7 @@ pub struct SmtpConfig {
     pub username: String,
     pub password: String,
     pub server: String,
+    pub port: u16,
 }
 
 fn get_email_sender() -> (String, String) {
@@ -32,12 +35,20 @@ pub fn init_smtp_config_vars() -> Option<SmtpConfig> {
     match (
         env::var("SMTP_USERNAME"),
         env::var("SMTP_PASSWORD"),
-        env::var("SMTP_SERVER")
+        env::var("SMTP_SERVER"),
+        env::var("SMTP_PORT"),
     ) {
-        (Ok(username), Ok(password), Ok(server)) => Some(SmtpConfig {
+        (Ok(username), Ok(password), Ok(server), Ok(port)) => Some(SmtpConfig {
             username: username,
             password: password,
             server: server,
+            port: port.parse::<u16>().unwrap_or(SUBMISSION_PORT),
+        }),
+        (Ok(username), Ok(password), Ok(server), _) => Some(SmtpConfig {
+            username: username,
+            password: password,
+            server: server,
+            port: SUBMISSION_PORT,
         }),
         _ => None,
     }
@@ -81,7 +92,18 @@ fn send_email(recipient: &str, subject: &str, body: &str) -> Result<(), Box<dyn 
 
     match smtp_config {
         Some(smtp_config) => {
-            let mut transport = SmtpClient::new_simple(&smtp_config.server)?
+            let mut tls_builder = TlsConnector::builder();
+            tls_builder.min_protocol_version(Some(DEFAULT_TLS_PROTOCOLS[0]));
+
+            let tls_parameters = {
+                let domain = smtp_config.server.to_owned();
+
+                ClientTlsParameters::new(domain, tls_builder.build().unwrap())
+            };
+            let mut transport = SmtpClient::new(
+                (smtp_config.server.as_str(), smtp_config.port),
+                ClientSecurity::Wrapper(tls_parameters),
+            )?
                 .credentials(Credentials::new(
                     smtp_config.username,
                     smtp_config.password,

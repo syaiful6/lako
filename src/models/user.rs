@@ -5,7 +5,7 @@ use bcrypt::{DEFAULT_COST, hash as bcrypt_hash, verify as bcrypt_verify, BcryptE
 use diesel::prelude::*;
 use diesel::{self, insert_into};
 use serde_derive::{Deserialize, Serialize};
-use crate::models::email::{NewEmail};
+use crate::models::email::{NewEmail, Email};
 use crate::schema::{emails, users};
 use crate::sql_types::Role;
 
@@ -152,6 +152,32 @@ pub fn register_user(
         }
 
         Ok(user)
+    })
+}
+
+pub fn regenerate_email_token_and_send(conn: &PgConnection, user_id: i32) -> Result<bool, AuthenticationError> {
+    use diesel::dsl::sql;
+    use diesel::update;
+
+    conn.transaction(|| {
+        let user = find_user(conn, user_id)?;
+
+        if let Some(user) = user {
+            let email = update(Email::belonging_to(&user))
+                .set(emails::token.eq(sql("DEFAULT")))
+                .get_result::<Email>(conn)
+                .map_err(AuthenticationError::DatabaseError)?;
+
+            crate::email::send_user_confirm_email(
+                &email.email,
+                &user.username,
+                &email.token,
+            );
+
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     })
 }
 

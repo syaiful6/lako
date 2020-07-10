@@ -10,8 +10,11 @@ use validator::Validate;
 use crate::auth::{encode_token, Claims};
 use crate::db::Repo;
 use crate::routes::utils::extract_json;
-use crate::routes::paths::TokenPath;
-use crate::models::user::{register_user, try_user_login, find_user, AuthenticationError, verify_email_with_token};
+use crate::routes::paths::{TokenPath, UserPath};
+use crate::models::user::{
+    register_user, try_user_login, find_user, AuthenticationError, verify_email_with_token,
+    regenerate_email_token_and_send
+};
 use crate::sql_types::Role;
 
 
@@ -170,6 +173,43 @@ pub fn confirm_user_email(state: State) -> Box<HandlerFuture> {
     let repo = Repo::borrow_from(&state).clone();
     
     let f = repo.run(move |conn| verify_email_with_token(&conn, token.as_str()))
+        .map_err(|e| e.into_handler_error().with_status(StatusCode::BAD_REQUEST))
+        .then(move |result| match result {
+            Ok(b) => {
+                let body = serde_json::to_string(&OkBool{ok: b})
+                    .expect("Failed to serialize error");
+                let res = create_response(&state, StatusCode::OK, mime::APPLICATION_JSON, body);
+                future::ok((state, res))
+            }
+            Err(_) => {
+                let body = serde_json::to_string(&LoginErr{ message: "Email belonging to token not found.".into() })
+                    .expect("Failed to serialize error");
+                let res = create_response(&state, StatusCode::BAD_REQUEST, mime::APPLICATION_JSON, body);
+                future::ok((state, res))
+            }
+        });
+
+    Box::new(f)
+}
+
+/// Handles `PUT /user/:user_id/resend` route
+pub fn regenerate_token_and_send(state: State) -> Box<HandlerFuture> {
+    let user = UserPath::borrow_from(&state);
+    // get current user id
+    let token = AuthorizationToken::<Claims>::borrow_from(&state);
+    let current_user_id = token.0.claims.user_id();
+
+    if user.id != current_user_id {
+        let body = serde_json::to_string(&LoginErr{ message: "current user does not match requested user.".into() })
+            .expect("Failed to serialize error");
+        let res = create_response(&state, StatusCode::BAD_REQUEST, mime::APPLICATION_JSON, body);
+        
+        return  Box::new(future::ok((state, res)))
+    }
+
+    let repo = Repo::borrow_from(&state).clone();
+
+    let f = repo.run(move |conn| regenerate_email_token_and_send(&conn, current_user_id))
         .then(move |result| match result {
             Ok(b) => {
                 let body = serde_json::to_string(&OkBool{ok: b})

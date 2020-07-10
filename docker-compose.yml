@@ -33,7 +33,8 @@ services:
       JWT_SECRET_KEY: "_uoE-5<>/x['DS.?XsHnG9ZZY6&^XNR("
       SMTP_USERNAME: "hamzah"
       SMTP_PASSWORD: "secret"
-      SMTP_SERVER: "mailhog:1025"
+      SMTP_SERVER: "mailhog"
+      SMTP_PORT: "1025"
     networks:
       - dock-net
       - default

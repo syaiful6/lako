@@ -875,6 +875,7 @@ dependencies = [
  "lettre_email",
  "log",
  "mime",
+ "native-tls",
  "pretty_env_logger",
  "serde",
  "serde_derive",

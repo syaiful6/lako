@@ -2,14 +2,13 @@ use futures::{future, Future};
 use serde_derive::{Deserialize, Serialize};
 use gotham::handler::{HandlerFuture, IntoHandlerError};
 use gotham::state::{FromState, State};
-use gotham::helpers::http::response::create_response;
 use gotham_middleware_jwt::AuthorizationToken;
 use hyper::StatusCode;
 use validator::Validate;
 
 use crate::auth::{encode_token, Claims};
 use crate::db::Repo;
-use crate::routes::utils::extract_json;
+use crate::routes::utils::{extract_json, json_response_ok, json_response_bad_message};
 use crate::routes::paths::{TokenPath, UserPath};
 use crate::models::user::{
     register_user, try_user_login, find_user, AuthenticationError, verify_email_with_token,
@@ -29,6 +28,7 @@ struct NewUser {
     #[validate(length(min = 8))]
     password2: String,    
 }
+
 
 /// server POST /api/v1/register
 /// this route register user as customer
@@ -69,9 +69,7 @@ pub fn register_user_handler(mut state: State) -> Box<HandlerFuture> {
         })
         .then(|result| match result {
             Ok(user) => {
-                let body = serde_json::to_string(&R { id: user.id })
-                    .expect("Failed to serialize users");
-                let res = create_response(&state, StatusCode::CREATED, mime::APPLICATION_JSON, body);
+                let res = json_response_ok(&state, &R { id: user.id });
                 future::ok((state, res))
             }
             Err(e) => future::err((state, e))
@@ -88,10 +86,6 @@ struct LoginForm {
     password: String,
 }
 
-#[derive(Debug, Serialize)]
-struct LoginErr {
-    message: String,
-}
 
 /// serve POST /api/v1/login
 pub fn login_user_handler(mut state: State) -> Box<HandlerFuture> {
@@ -119,14 +113,13 @@ pub fn login_user_handler(mut state: State) -> Box<HandlerFuture> {
         .then(|result| {
             if let Ok(Some(user)) = result {
                 let token = encode_token(user.id);
-                let body = serde_json::to_string(&R { access: token })
-                    .expect("Failed to serialize token");
-                let res = create_response(&state, StatusCode::OK, mime::APPLICATION_JSON, body);
+                let res = json_response_ok(&state, &R { access: token });
                 future::ok((state, res))
             } else {
-                let body = serde_json::to_string(&LoginErr{ message: "invalid username or password".into() })
-                        .expect("Failed to serialize error");
-                let res = create_response(&state, StatusCode::BAD_REQUEST, mime::APPLICATION_JSON, body);
+                let res = json_response_bad_message(
+                    &state,
+                    "invalid username or password".into(),
+                );
                 future::ok((state, res))
             }
         });
@@ -144,14 +137,13 @@ pub fn get_user(state: State) -> Box<HandlerFuture> {
         .map_err(|e| e.into_handler_error().with_status(StatusCode::BAD_REQUEST))
         .then(move |result| {
             if let Ok(Some(user)) = result {
-                let body = serde_json::to_string(&user)
-                    .expect("Failed to serialize token");
-                let res = create_response(&state, StatusCode::OK, mime::APPLICATION_JSON, body);
+                let res = json_response_ok(&state, &user);
                 future::ok((state, res))
             } else {
-                let body = serde_json::to_string(&LoginErr{ message: "invalid token".into() })
-                        .expect("Failed to serialize error");
-                let res = create_response(&state, StatusCode::BAD_REQUEST, mime::APPLICATION_JSON, body);
+                let res = json_response_bad_message(
+                    &state,
+                    "invalid token".into(),
+                );
                 future::ok((state, res))
             }
         });
@@ -176,15 +168,14 @@ pub fn confirm_user_email(state: State) -> Box<HandlerFuture> {
         .map_err(|e| e.into_handler_error().with_status(StatusCode::BAD_REQUEST))
         .then(move |result| match result {
             Ok(b) => {
-                let body = serde_json::to_string(&OkBool{ok: b})
-                    .expect("Failed to serialize error");
-                let res = create_response(&state, StatusCode::OK, mime::APPLICATION_JSON, body);
+                let res = json_response_ok(&state, &OkBool{ ok: b });
                 future::ok((state, res))
             }
             Err(_) => {
-                let body = serde_json::to_string(&LoginErr{ message: "Email belonging to token not found.".into() })
-                    .expect("Failed to serialize error");
-                let res = create_response(&state, StatusCode::BAD_REQUEST, mime::APPLICATION_JSON, body);
+                let res = json_response_bad_message(
+                    &state,
+                    "Email belonging to token not found.".into(),
+                );
                 future::ok((state, res))
             }
         });
@@ -200,9 +191,10 @@ pub fn regenerate_token_and_send(state: State) -> Box<HandlerFuture> {
     let current_user_id = token.0.claims.user_id();
 
     if user.id != current_user_id {
-        let body = serde_json::to_string(&LoginErr{ message: "current user does not match requested user.".into() })
-            .expect("Failed to serialize error");
-        let res = create_response(&state, StatusCode::BAD_REQUEST, mime::APPLICATION_JSON, body);
+        let res = json_response_bad_message(
+            &state,
+            "current user does not match requested user.".into()
+        );
         
         return  Box::new(future::ok((state, res)))
     }
@@ -212,15 +204,11 @@ pub fn regenerate_token_and_send(state: State) -> Box<HandlerFuture> {
     let f = repo.run(move |conn| regenerate_email_token_and_send(&conn, current_user_id))
         .then(move |result| match result {
             Ok(b) => {
-                let body = serde_json::to_string(&OkBool{ok: b})
-                    .expect("Failed to serialize error");
-                let res = create_response(&state, StatusCode::OK, mime::APPLICATION_JSON, body);
+                let res = json_response_ok(&state, &OkBool{ok: b});
                 future::ok((state, res))
             }
             Err(_) => {
-                let body = serde_json::to_string(&LoginErr{ message: "Email belonging to token not found.".into() })
-                    .expect("Failed to serialize error");
-                let res = create_response(&state, StatusCode::BAD_REQUEST, mime::APPLICATION_JSON, body);
+                let res = json_response_bad_message(&state, "Email belonging to token not found.".into());
                 future::ok((state, res))
             }
         });

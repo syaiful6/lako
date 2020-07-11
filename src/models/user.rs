@@ -1,13 +1,13 @@
 use std::error;
 use std::fmt;
 
-use bcrypt::{DEFAULT_COST, hash as bcrypt_hash, verify as bcrypt_verify, BcryptError};
+use crate::models::email::{Email, NewEmail};
+use crate::schema::{emails, users};
+use crate::sql_types::Role;
+use bcrypt::{hash as bcrypt_hash, verify as bcrypt_verify, BcryptError, DEFAULT_COST};
 use diesel::prelude::*;
 use diesel::{self, insert_into};
 use serde_derive::{Deserialize, Serialize};
-use crate::models::email::{NewEmail, Email};
-use crate::schema::{emails, users};
-use crate::sql_types::Role;
 
 #[derive(Debug)]
 pub enum AuthenticationError {
@@ -25,9 +25,9 @@ impl fmt::Display for AuthenticationError {
             "authentication error: {}",
             match *self {
                 AuthenticationError::IncorrectPassword => "incorrect password",
-                AuthenticationError::NoUsernameSet     => "no username set",
-                AuthenticationError::NoPasswordSet     => "no password set",
-                _                                      => "internal error",
+                AuthenticationError::NoUsernameSet => "no username set",
+                AuthenticationError::NoPasswordSet => "no password set",
+                _ => "internal error",
             }
         )
     }
@@ -55,7 +55,18 @@ impl From<diesel::result::Error> for AuthenticationError {
 
 pub use self::AuthenticationError::{IncorrectPassword, NoPasswordSet, NoUsernameSet};
 
-#[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq, Queryable, Identifiable, AsChangeset, Associations)]
+#[derive(
+    Deserialize,
+    Serialize,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Queryable,
+    Identifiable,
+    AsChangeset,
+    Associations,
+)]
 pub struct User {
     pub id: i32,
     pub role: Role,
@@ -74,9 +85,13 @@ pub struct UserWithPassword {
 pub fn find_user(conn: &PgConnection, id: i32) -> Result<Option<User>, AuthenticationError> {
     users::table
         .filter(users::id.eq(id))
-        .select(
-            (users::id, users::role, users::username, users::profile_name, users::profile_image),
-        )
+        .select((
+            users::id,
+            users::role,
+            users::username,
+            users::profile_name,
+            users::profile_image,
+        ))
         .first::<User>(conn)
         .optional()
         .map_err(AuthenticationError::DatabaseError)
@@ -89,12 +104,16 @@ pub fn try_user_login(
 ) -> Result<Option<User>, AuthenticationError> {
     let user_and_password = users::table
         .filter(users::username.eq(username))
-        .select(
+        .select((
             (
-                (users::id, users::role, users::username, users::profile_name, users::profile_image),
-                users::hashed_password,
+                users::id,
+                users::role,
+                users::username,
+                users::profile_name,
+                users::profile_image,
             ),
-        )
+            users::hashed_password,
+        ))
         .first::<UserWithPassword>(conn)
         .optional()
         .map_err(AuthenticationError::DatabaseError)?;
@@ -131,10 +150,16 @@ pub fn register_user(
                 users::profile_name.eq(""),
                 users::profile_image.eq(""),
             ))
-            .returning((users::id, users::role, users::username, users::profile_name, users::profile_image))
+            .returning((
+                users::id,
+                users::role,
+                users::username,
+                users::profile_name,
+                users::profile_image,
+            ))
             .get_result::<User>(conn)
             .map_err(AuthenticationError::DatabaseError)?;
-        
+
         let new_email = NewEmail {
             email: email,
             user_id: user.id,
@@ -146,7 +171,7 @@ pub fn register_user(
             .returning(emails::token)
             .get_result::<String>(conn)
             .optional()?;
-        
+
         if let Some(token) = token {
             crate::email::send_user_confirm_email(email, username, &token);
         }
@@ -155,7 +180,10 @@ pub fn register_user(
     })
 }
 
-pub fn regenerate_email_token_and_send(conn: &PgConnection, user_id: i32) -> Result<bool, AuthenticationError> {
+pub fn regenerate_email_token_and_send(
+    conn: &PgConnection,
+    user_id: i32,
+) -> Result<bool, AuthenticationError> {
     use diesel::dsl::sql;
     use diesel::update;
 
@@ -168,11 +196,7 @@ pub fn regenerate_email_token_and_send(conn: &PgConnection, user_id: i32) -> Res
                 .get_result::<Email>(conn)
                 .map_err(AuthenticationError::DatabaseError)?;
 
-            crate::email::send_user_confirm_email(
-                &email.email,
-                &user.username,
-                &email.token,
-            );
+            crate::email::send_user_confirm_email(&email.email, &user.username, &email.token);
 
             Ok(true)
         } else {
@@ -182,7 +206,10 @@ pub fn regenerate_email_token_and_send(conn: &PgConnection, user_id: i32) -> Res
 }
 
 /// verify an email address based on token
-pub fn verify_email_with_token(conn: &PgConnection, token: &str) -> Result<bool, AuthenticationError> {
+pub fn verify_email_with_token(
+    conn: &PgConnection,
+    token: &str,
+) -> Result<bool, AuthenticationError> {
     use diesel::update;
 
     let updated_rows = update(emails::table.filter(emails::token.eq(token)))

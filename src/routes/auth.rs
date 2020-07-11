@@ -1,21 +1,20 @@
 use futures::{future, Future};
-use serde_derive::{Deserialize, Serialize};
 use gotham::handler::{HandlerFuture, IntoHandlerError};
 use gotham::state::{FromState, State};
 use gotham_middleware_jwt::AuthorizationToken;
 use hyper::StatusCode;
+use serde_derive::{Deserialize, Serialize};
 use validator::Validate;
 
 use crate::auth::{encode_token, Claims};
 use crate::db::Repo;
-use crate::routes::utils::{extract_json, json_response_ok, json_response_bad_message};
-use crate::routes::paths::{TokenPath, UserPath};
 use crate::models::user::{
-    register_user, try_user_login, find_user, AuthenticationError, verify_email_with_token,
-    regenerate_email_token_and_send
+    find_user, regenerate_email_token_and_send, register_user, try_user_login,
+    verify_email_with_token, AuthenticationError,
 };
+use crate::routes::paths::{TokenPath, UserPath};
+use crate::routes::utils::{extract_json, json_response_bad_message, json_response_ok};
 use crate::sql_types::Role;
-
 
 #[derive(Debug, Deserialize, Validate)]
 struct NewUser {
@@ -26,9 +25,8 @@ struct NewUser {
     #[validate(length(min = 8))]
     password1: String,
     #[validate(length(min = 8))]
-    password2: String,    
+    password2: String,
 }
-
 
 /// server POST /api/v1/register
 /// this route register user as customer
@@ -48,13 +46,11 @@ pub fn register_user_handler(mut state: State) -> Box<HandlerFuture> {
                     future::err(
                         AuthenticationError::IncorrectPassword
                             .into_handler_error()
-                            .with_status(StatusCode::BAD_REQUEST)
+                            .with_status(StatusCode::BAD_REQUEST),
                     )
                 }
             }
-            Err(e) => future::err(
-                e.into_handler_error().with_status(StatusCode::BAD_REQUEST)
-            )
+            Err(e) => future::err(e.into_handler_error().with_status(StatusCode::BAD_REQUEST)),
         })
         .and_then(move |user| {
             repo.run(move |conn| {
@@ -65,14 +61,15 @@ pub fn register_user_handler(mut state: State) -> Box<HandlerFuture> {
                     user.password1.as_str(),
                     &Role::Customer,
                 )
-            }).map_err(|e| e.into_handler_error().with_status(StatusCode::BAD_REQUEST))
+            })
+            .map_err(|e| e.into_handler_error().with_status(StatusCode::BAD_REQUEST))
         })
         .then(|result| match result {
             Ok(user) => {
                 let res = json_response_ok(&state, &R { id: user.id });
                 future::ok((state, res))
             }
-            Err(e) => future::err((state, e))
+            Err(e) => future::err((state, e)),
         });
 
     Box::new(f)
@@ -85,7 +82,6 @@ struct LoginForm {
     #[validate(length(min = 8))]
     password: String,
 }
-
 
 /// serve POST /api/v1/login
 pub fn login_user_handler(mut state: State) -> Box<HandlerFuture> {
@@ -108,7 +104,8 @@ pub fn login_user_handler(mut state: State) -> Box<HandlerFuture> {
                     creds.username.to_ascii_lowercase().as_str(),
                     creds.password.as_str(),
                 )
-            }).map_err(|e| e.into_handler_error().with_status(StatusCode::BAD_REQUEST))
+            })
+            .map_err(|e| e.into_handler_error().with_status(StatusCode::BAD_REQUEST))
         })
         .then(|result| {
             if let Ok(Some(user)) = result {
@@ -116,10 +113,7 @@ pub fn login_user_handler(mut state: State) -> Box<HandlerFuture> {
                 let res = json_response_ok(&state, &R { access: token });
                 future::ok((state, res))
             } else {
-                let res = json_response_bad_message(
-                    &state,
-                    "invalid username or password".into(),
-                );
+                let res = json_response_bad_message(&state, "invalid username or password".into());
                 future::ok((state, res))
             }
         });
@@ -133,17 +127,15 @@ pub fn get_user(state: State) -> Box<HandlerFuture> {
     let token = AuthorizationToken::<Claims>::borrow_from(&state);
     let user_id = token.0.claims.user_id();
 
-    let f = repo.run(move |conn| find_user(&conn, user_id))
+    let f = repo
+        .run(move |conn| find_user(&conn, user_id))
         .map_err(|e| e.into_handler_error().with_status(StatusCode::BAD_REQUEST))
         .then(move |result| {
             if let Ok(Some(user)) = result {
                 let res = json_response_ok(&state, &user);
                 future::ok((state, res))
             } else {
-                let res = json_response_bad_message(
-                    &state,
-                    "invalid token".into(),
-                );
+                let res = json_response_bad_message(&state, "invalid token".into());
                 future::ok((state, res))
             }
         });
@@ -163,19 +155,18 @@ pub fn confirm_user_email(state: State) -> Box<HandlerFuture> {
         path.token.to_owned()
     };
     let repo = Repo::borrow_from(&state).clone();
-    
-    let f = repo.run(move |conn| verify_email_with_token(&conn, token.as_str()))
+
+    let f = repo
+        .run(move |conn| verify_email_with_token(&conn, token.as_str()))
         .map_err(|e| e.into_handler_error().with_status(StatusCode::BAD_REQUEST))
         .then(move |result| match result {
             Ok(b) => {
-                let res = json_response_ok(&state, &OkBool{ ok: b });
+                let res = json_response_ok(&state, &OkBool { ok: b });
                 future::ok((state, res))
             }
             Err(_) => {
-                let res = json_response_bad_message(
-                    &state,
-                    "Email belonging to token not found.".into(),
-                );
+                let res =
+                    json_response_bad_message(&state, "Email belonging to token not found.".into());
                 future::ok((state, res))
             }
         });
@@ -191,24 +182,24 @@ pub fn regenerate_token_and_send(state: State) -> Box<HandlerFuture> {
     let current_user_id = token.0.claims.user_id();
 
     if user.id != current_user_id {
-        let res = json_response_bad_message(
-            &state,
-            "current user does not match requested user.".into()
-        );
-        
-        return  Box::new(future::ok((state, res)))
+        let res =
+            json_response_bad_message(&state, "current user does not match requested user.".into());
+
+        return Box::new(future::ok((state, res)));
     }
 
     let repo = Repo::borrow_from(&state).clone();
 
-    let f = repo.run(move |conn| regenerate_email_token_and_send(&conn, current_user_id))
+    let f = repo
+        .run(move |conn| regenerate_email_token_and_send(&conn, current_user_id))
         .then(move |result| match result {
             Ok(b) => {
-                let res = json_response_ok(&state, &OkBool{ok: b});
+                let res = json_response_ok(&state, &OkBool { ok: b });
                 future::ok((state, res))
             }
             Err(_) => {
-                let res = json_response_bad_message(&state, "Email belonging to token not found.".into());
+                let res =
+                    json_response_bad_message(&state, "Email belonging to token not found.".into());
                 future::ok((state, res))
             }
         });

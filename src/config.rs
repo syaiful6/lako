@@ -1,5 +1,5 @@
-use std::fmt;
 use std::env;
+use std::fmt;
 
 use clap::{App, Arg};
 use serde_derive::{Deserialize, Serialize};
@@ -21,9 +21,7 @@ pub struct Server {
 impl Config {
     // create new config
     pub fn new(server: Server) -> Config {
-        Config {
-            server: server,
-        }
+        Config { server: server }
     }
 }
 
@@ -63,9 +61,9 @@ pub fn load_configuration() -> Result<Config, ConfigurationError> {
         .get_matches();
 
     let address = matches.value_of("address").unwrap().to_string();
-    
+
     let db_url: String = match env::var("DATABASE_URL") {
-        Ok(val)  => val,
+        Ok(val) => val,
         Err(err) => {
             return Err(ConfigurationError::new(&format!(
                 "No Database URL environment variable `DATABASE_URL` set. {}",
@@ -74,10 +72,7 @@ pub fn load_configuration() -> Result<Config, ConfigurationError> {
         }
     };
 
-    let server = Server {
-        address,
-        db_url,
-    };
+    let server = Server { address, db_url };
 
     let configuration = Config::new(server);
 

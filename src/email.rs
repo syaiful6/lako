@@ -1,13 +1,13 @@
 use std::env;
 use std::path::Path;
 
-use native_tls::TlsConnector;
 use failure::Fail;
 use lettre::file::FileTransport;
-use lettre::smtp::client::net::{ClientTlsParameters, DEFAULT_TLS_PROTOCOLS};
 use lettre::smtp::authentication::{Credentials, Mechanism};
-use lettre::smtp::{SmtpClient, ClientSecurity, SUBMISSION_PORT};
+use lettre::smtp::client::net::{ClientTlsParameters, DEFAULT_TLS_PROTOCOLS};
+use lettre::smtp::{ClientSecurity, SmtpClient, SUBMISSION_PORT};
 use lettre::{SendableEmail, Transport};
+use native_tls::TlsConnector;
 
 use lettre_email::Email;
 
@@ -22,11 +22,11 @@ pub struct SmtpConfig {
 fn get_email_sender() -> (String, String) {
     let address = match env::var("MAIL_FROM_ADDRESS") {
         Ok(addr) => addr,
-        _        => "test@localhost".to_string()
+        _ => "test@localhost".to_string(),
     };
-    let name   = match env::var("MAIL_FROM_NAME") {
+    let name = match env::var("MAIL_FROM_NAME") {
         Ok(name) => name,
-        _        => "Lako".to_string()
+        _ => "Lako".to_string(),
     };
     (address, name)
 }
@@ -58,7 +58,11 @@ pub fn send_user_confirm_email(email: &str, user_name: &str, token: &str) {
     let _ = try_send_user_confirm_email(email, user_name, token);
 }
 
-pub fn try_send_user_confirm_email(email: &str, user_name: &str, token: &str) -> Result<(), Box<dyn std::error::Error>> {
+pub fn try_send_user_confirm_email(
+    email: &str,
+    user_name: &str,
+    token: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
     let subject = "Please confirm your email address";
     let body = format!(
         "Hello {}! Welcome to Lako. Please click the
@@ -73,7 +77,7 @@ https://lako.io/confirm/{}",
 fn build_email(
     recipient: &str,
     subject: &str,
-    body: &str
+    body: &str,
 ) -> Result<SendableEmail, Box<dyn std::error::Error>> {
     let email = Email::builder()
         .to(recipient)
@@ -86,7 +90,11 @@ fn build_email(
     Ok(email.into())
 }
 
-fn send_email(recipient: &str, subject: &str, body: &str) -> Result<(), Box<dyn std::error::Error>> {
+fn send_email(
+    recipient: &str,
+    subject: &str,
+    body: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
     let smtp_config = init_smtp_config_vars();
     let email = build_email(recipient, subject, body)?;
 
@@ -104,14 +112,11 @@ fn send_email(recipient: &str, subject: &str, body: &str) -> Result<(), Box<dyn 
                 (smtp_config.server.as_str(), smtp_config.port),
                 ClientSecurity::Wrapper(tls_parameters),
             )?
-                .credentials(Credentials::new(
-                    smtp_config.username,
-                    smtp_config.password,
-                ))
-                .smtp_utf8(true)
-                .authentication_mechanism(Mechanism::Plain)
-                .transport();
-            
+            .credentials(Credentials::new(smtp_config.username, smtp_config.password))
+            .smtp_utf8(true)
+            .authentication_mechanism(Mechanism::Plain)
+            .transport();
+
             transport.send(email)?;
         }
         None => {

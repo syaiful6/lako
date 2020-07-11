@@ -8,8 +8,8 @@ extern crate gotham_derive;
 #[macro_use]
 extern crate validator_derive;
 
-use std::process;
 use log::{error, info};
+use std::process;
 
 use crate::config::Config;
 use crate::db::create_repo;
@@ -26,7 +26,7 @@ pub mod sql_types;
 pub fn bootstrap() {
     let cfg = match config::load_configuration() {
         Ok(cfg) => cfg,
-        Err(e)  => {
+        Err(e) => {
             error!("Failed to load configuration: {}", e);
             process::exit(0x0100);
         }

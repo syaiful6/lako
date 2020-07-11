@@ -5,4 +5,4 @@ fn main() {
 
     // Load configuration and start Lako
     bootstrap();
-} 
+}

@@ -1,9 +1,9 @@
 use std::str::from_utf8;
 
-use gotham::helpers::http::response::create_response;
-use gotham::state::{FromState, State};
 use futures::{Future, Stream};
 use gotham::handler::{HandlerError, IntoHandlerError};
+use gotham::helpers::http::response::create_response;
+use gotham::state::{FromState, State};
 use hyper::{Body, Response, StatusCode};
 use serde_derive::Serialize;
 
@@ -13,7 +13,6 @@ where
 {
     e.into_handler_error().with_status(StatusCode::BAD_REQUEST)
 }
-
 
 pub fn extract_json<T>(state: &mut State) -> impl Future<Item = T, Error = HandlerError>
 where
@@ -30,24 +29,24 @@ where
         })
 }
 
-
-pub fn json_response<T: serde::Serialize>(state: &State, t: &T, status_code: StatusCode) -> Response<Body> {
+pub fn json_response<T: serde::Serialize>(
+    state: &State,
+    t: &T,
+    status_code: StatusCode,
+) -> Response<Body> {
     let body = serde_json::to_string(t).unwrap();
 
     create_response(state, status_code, mime::APPLICATION_JSON, body)
 }
 
-
 pub fn json_response_ok<T: serde::Serialize>(state: &State, t: &T) -> Response<Body> {
     json_response(state, t, StatusCode::OK)
 }
-
 
 #[derive(Debug, Serialize)]
 struct ErrMessage {
     message: String,
 }
-
 
 pub fn json_response_bad_message(state: &State, msg: String) -> Response<Body> {
     json_response(state, &ErrMessage { message: msg }, StatusCode::BAD_REQUEST)

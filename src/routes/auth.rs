@@ -1,9 +1,10 @@
-use futures::{future, Future};
-use gotham::handler::{HandlerFuture, IntoHandlerError};
+use futures::future;
+use futures::prelude::*;
+use gotham::handler::HandlerFuture;
 use gotham::state::{FromState, State};
 use gotham_middleware_jwt::AuthorizationToken;
-use hyper::StatusCode;
 use serde_derive::{Deserialize, Serialize};
+use std::pin::Pin;
 use validator::Validate;
 
 use crate::auth::{encode_token, Claims};
@@ -28,32 +29,30 @@ struct NewUser {
     password2: String,
 }
 
-/// server POST /api/v1/register
+/// serve POST /api/v1/register
 /// this route register user as customer
-pub fn register_user_handler(mut state: State) -> Box<HandlerFuture> {
+pub fn register_user_handler(mut state: State) -> Pin<Box<HandlerFuture>> {
     let repo = Repo::borrow_from(&state).clone();
 
     #[derive(Serialize)]
     struct R {
         id: i32,
     }
-    let f = extract_json::<NewUser>(&mut state)
-        .and_then(move |user| match user.validate() {
-            Ok(_) => {
+
+    async move {
+        let user = match extract_json::<NewUser>(&mut state).await {
+            Ok(user) => {
                 if user.password1 == user.password2 {
-                    future::ok(user)
+                    user
                 } else {
-                    future::err(
-                        AuthenticationError::IncorrectPassword
-                            .into_handler_error()
-                            .with_status(StatusCode::BAD_REQUEST),
-                    )
+                    return Err((state, AuthenticationError::IncorrectPassword.into()));
                 }
             }
-            Err(e) => future::err(e.into_handler_error().with_status(StatusCode::BAD_REQUEST)),
-        })
-        .and_then(move |user| {
-            repo.run(move |conn| {
+            Err(e) => return Err((state, e)),
+        };
+
+        let result = repo
+            .run(move |conn| {
                 register_user(
                     &conn,
                     user.username.to_ascii_lowercase().as_str(),
@@ -62,17 +61,18 @@ pub fn register_user_handler(mut state: State) -> Box<HandlerFuture> {
                     &Role::Customer,
                 )
             })
-            .map_err(|e| e.into_handler_error().with_status(StatusCode::BAD_REQUEST))
-        })
-        .then(|result| match result {
+            .await;
+
+        match result {
             Ok(user) => {
                 let res = json_response_ok(&state, &R { id: user.id });
-                future::ok((state, res))
-            }
-            Err(e) => future::err((state, e)),
-        });
 
-    Box::new(f)
+                Ok((state, res))
+            }
+            Err(e) => Err((state, e.into())),
+        }
+    }
+    .boxed()
 }
 
 #[derive(Debug, Deserialize, Validate)]
@@ -84,7 +84,7 @@ struct LoginForm {
 }
 
 /// serve POST /api/v1/login
-pub fn login_user_handler(mut state: State) -> Box<HandlerFuture> {
+pub fn login_user_handler(mut state: State) -> Pin<Box<HandlerFuture>> {
     let repo = Repo::borrow_from(&state).clone();
 
     #[derive(Serialize)]
@@ -92,55 +92,53 @@ pub fn login_user_handler(mut state: State) -> Box<HandlerFuture> {
         access: String,
     }
 
-    let f = extract_json::<LoginForm>(&mut state)
-        .and_then(move |creds| match creds.validate() {
-            Ok(_) => future::ok(creds),
-            Err(e) => future::err(e.into_handler_error().with_status(StatusCode::BAD_REQUEST)),
-        })
-        .and_then(move |creds| {
-            repo.run(move |conn| {
+    async move {
+        let creds = match extract_json::<LoginForm>(&mut state).await {
+            Ok(creds) => creds,
+            Err(e) => return Err((state, e)),
+        };
+
+        let result = repo
+            .run(move |conn| {
                 try_user_login(
                     &conn,
                     creds.username.to_ascii_lowercase().as_str(),
                     creds.password.as_str(),
                 )
             })
-            .map_err(|e| e.into_handler_error().with_status(StatusCode::BAD_REQUEST))
-        })
-        .then(|result| {
-            if let Ok(Some(user)) = result {
-                let token = encode_token(user.id);
-                let res = json_response_ok(&state, &R { access: token });
-                future::ok((state, res))
-            } else {
-                let res = json_response_bad_message(&state, "invalid username or password".into());
-                future::ok((state, res))
-            }
-        });
+            .await;
 
-    Box::new(f)
+        if let Ok(Some(user)) = result {
+            let token = encode_token(user.id);
+            let res = json_response_ok(&state, &R { access: token });
+
+            Ok((state, res))
+        } else {
+            let res = json_response_bad_message(&state, "invalid username or password".into());
+            Ok((state, res))
+        }
+    }
+    .boxed()
 }
 
 /// GET /api/v1/me
-pub fn get_user(state: State) -> Box<HandlerFuture> {
+pub fn get_user(state: State) -> Pin<Box<HandlerFuture>> {
     let repo = Repo::borrow_from(&state).clone();
     let token = AuthorizationToken::<Claims>::borrow_from(&state);
     let user_id = token.0.claims.user_id();
 
-    let f = repo
-        .run(move |conn| find_user(&conn, user_id))
-        .map_err(|e| e.into_handler_error().with_status(StatusCode::BAD_REQUEST))
-        .then(move |result| {
-            if let Ok(Some(user)) = result {
-                let res = json_response_ok(&state, &user);
-                future::ok((state, res))
-            } else {
-                let res = json_response_bad_message(&state, "invalid token".into());
-                future::ok((state, res))
-            }
-        });
+    async move {
+        let result = repo.run(move |conn| find_user(&conn, user_id)).await;
 
-    Box::new(f)
+        if let Ok(Some(user)) = result {
+            let res = json_response_ok(&state, &user);
+            Ok((state, res))
+        } else {
+            let res = json_response_bad_message(&state, "invalid token".into());
+            Ok((state, res))
+        }
+    }
+    .boxed()
 }
 
 #[derive(Debug, Serialize)]
@@ -149,33 +147,35 @@ struct OkBool {
 }
 
 /// PUT /api/v1/confirm/:token
-pub fn confirm_user_email(state: State) -> Box<HandlerFuture> {
+pub fn confirm_user_email(state: State) -> Pin<Box<HandlerFuture>> {
     let token = {
         let path = TokenPath::borrow_from(&state).clone();
         path.token.to_owned()
     };
     let repo = Repo::borrow_from(&state).clone();
 
-    let f = repo
-        .run(move |conn| verify_email_with_token(&conn, token.as_str()))
-        .map_err(|e| e.into_handler_error().with_status(StatusCode::BAD_REQUEST))
-        .then(move |result| match result {
+    async move {
+        let result = repo
+            .run(move |conn| verify_email_with_token(&conn, token.as_str()))
+            .await;
+
+        match result {
             Ok(b) => {
                 let res = json_response_ok(&state, &OkBool { ok: b });
-                future::ok((state, res))
+                Ok((state, res))
             }
             Err(_) => {
                 let res =
                     json_response_bad_message(&state, "Email belonging to token not found.".into());
-                future::ok((state, res))
+                Ok((state, res))
             }
-        });
-
-    Box::new(f)
+        }
+    }
+    .boxed()
 }
 
 /// Handles `PUT /user/:user_id/resend` route
-pub fn regenerate_token_and_send(state: State) -> Box<HandlerFuture> {
+pub fn regenerate_token_and_send(state: State) -> Pin<Box<HandlerFuture>> {
     let user = UserPath::borrow_from(&state);
     // get current user id
     let token = AuthorizationToken::<Claims>::borrow_from(&state);
@@ -185,24 +185,27 @@ pub fn regenerate_token_and_send(state: State) -> Box<HandlerFuture> {
         let res =
             json_response_bad_message(&state, "current user does not match requested user.".into());
 
-        return Box::new(future::ok((state, res)));
+        return future::ok((state, res)).boxed();
     }
 
     let repo = Repo::borrow_from(&state).clone();
 
-    let f = repo
-        .run(move |conn| regenerate_email_token_and_send(&conn, current_user_id))
-        .then(move |result| match result {
+    async move {
+        let result = repo
+            .run(move |conn| regenerate_email_token_and_send(&conn, current_user_id))
+            .await;
+
+        match result {
             Ok(b) => {
                 let res = json_response_ok(&state, &OkBool { ok: b });
-                future::ok((state, res))
+                Ok((state, res))
             }
             Err(_) => {
                 let res =
                     json_response_bad_message(&state, "Email belonging to token not found.".into());
-                future::ok((state, res))
+                Ok((state, res))
             }
-        });
-
-    Box::new(f)
+        }
+    }
+    .boxed()
 }

@@ -1,32 +1,22 @@
 use std::str::from_utf8;
 
-use futures::{Future, Stream};
-use gotham::handler::{HandlerError, IntoHandlerError};
+use gotham::handler::{HandlerError, MapHandlerError, MapHandlerErrorFuture};
 use gotham::helpers::http::response::create_response;
+use gotham::hyper::{body, Body, Response, StatusCode};
 use gotham::state::{FromState, State};
-use hyper::{Body, Response, StatusCode};
 use serde_derive::Serialize;
 
-pub fn bad_request<E>(e: E) -> HandlerError
-where
-    E: std::error::Error + Send + 'static,
-{
-    e.into_handler_error().with_status(StatusCode::BAD_REQUEST)
-}
-
-pub fn extract_json<T>(state: &mut State) -> impl Future<Item = T, Error = HandlerError>
+pub async fn extract_json<T>(state: &mut State) -> Result<T, HandlerError>
 where
     T: serde::de::DeserializeOwned,
 {
-    Body::take_from(state)
-        .concat2()
-        .map_err(bad_request)
-        .and_then(|body| {
-            let b = body.to_vec();
-            from_utf8(&b)
-                .map_err(bad_request)
-                .and_then(|s| serde_json::from_str::<T>(s).map_err(bad_request))
-        })
+    let body = body::to_bytes(Body::take_from(state))
+        .map_err_with_status(StatusCode::BAD_REQUEST)
+        .await?;
+    let b = body.to_vec();
+    from_utf8(&b)
+        .map_err_with_status(StatusCode::BAD_REQUEST)
+        .and_then(|s| serde_json::from_str::<T>(s).map_err_with_status(StatusCode::BAD_REQUEST))
 }
 
 pub fn json_response<T: serde::Serialize>(

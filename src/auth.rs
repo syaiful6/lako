@@ -1,4 +1,4 @@
-use jsonwebtoken::{encode, Header};
+use jsonwebtoken::{encode, EncodingKey, Header};
 use log::error;
 use serde_derive::{Deserialize, Serialize};
 use std::env;
@@ -38,7 +38,7 @@ pub fn encode_token(sub: i32) -> String {
     encode(
         &Header::default(),
         &Claims::new(sub, 86400),
-        get_jwt_secret_key().as_ref(),
+        &EncodingKey::from_secret(get_jwt_secret_key().as_ref()),
     )
     .unwrap()
 }

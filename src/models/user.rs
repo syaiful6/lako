@@ -219,3 +219,30 @@ pub fn verify_email_with_token(
 
     Ok(updated_rows > 0)
 }
+
+// update a user
+#[derive(AsChangeset)]
+#[table_name = "users"]
+pub struct UserChanges {
+    pub role: Option<Role>,
+    pub profile_name: Option<String>,
+    pub profile_image: Option<String>,
+}
+
+// update a user
+pub fn update_user(
+    conn: &PgConnection,
+    user_id: i32,
+    user: &UserChanges,
+) -> Result<User, AuthenticationError> {
+    use crate::schema::users::dsl::*;
+    use diesel::update;
+
+    let user = update(users.find(user_id))
+        .set(user)
+        .returning((id, role, username, profile_name, profile_image))
+        .get_result::<User>(conn)
+        .map_err(AuthenticationError::DatabaseError)?;
+
+    Ok(user)
+}

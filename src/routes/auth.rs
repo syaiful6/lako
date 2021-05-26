@@ -10,8 +10,8 @@ use validator::Validate;
 use crate::auth::{encode_token, Claims};
 use crate::db::Repo;
 use crate::models::user::{
-    find_user, regenerate_email_token_and_send, register_user, try_user_login,
-    verify_email_with_token, AuthenticationError,
+    find_user, regenerate_email_token_and_send, register_user, try_user_login, update_user,
+    verify_email_with_token, AuthenticationError, UserChanges,
 };
 use crate::routes::paths::{TokenPath, UserPath};
 use crate::routes::utils::{extract_json, json_response_bad_message, json_response_ok};
@@ -174,7 +174,7 @@ pub fn confirm_user_email(state: State) -> Pin<Box<HandlerFuture>> {
     .boxed()
 }
 
-/// Handles `PUT /user/:user_id/resend` route
+/// Handles `PUT /users/:user_id/resend` route
 pub fn regenerate_token_and_send(state: State) -> Pin<Box<HandlerFuture>> {
     let user = UserPath::borrow_from(&state);
     // get current user id
@@ -203,6 +203,57 @@ pub fn regenerate_token_and_send(state: State) -> Pin<Box<HandlerFuture>> {
             Err(_) => {
                 let res =
                     json_response_bad_message(&state, "Email belonging to token not found.".into());
+                Ok((state, res))
+            }
+        }
+    }
+    .boxed()
+}
+
+#[derive(Debug, Deserialize, Validate)]
+struct UserChangeRequest {
+    pub profile_name: Option<String>,
+    pub profile_image: Option<String>,
+}
+
+/// Handles `Patch /me` router
+pub fn user_update_detail_handler(mut state: State) -> Pin<Box<HandlerFuture>> {
+    // get current user id
+    let token = AuthorizationToken::<Claims>::borrow_from(&state);
+    let current_user_id = token.0.claims.user_id();
+
+    let repo = Repo::borrow_from(&state).clone();
+
+    async move {
+        let changes = match extract_json::<UserChangeRequest>(&mut state).await {
+            Ok(changes) => changes,
+            Err(e) => return Err((state, e)),
+        };
+
+        let result = repo
+            .run(move |conn| {
+                update_user(
+                    &conn,
+                    current_user_id,
+                    &UserChanges {
+                        role: None,
+                        profile_name: changes.profile_name,
+                        profile_image: changes.profile_image,
+                    },
+                )
+            })
+            .await;
+
+        match result {
+            Ok(user) => {
+                let res = json_response_ok(&state, &user);
+                Ok((state, res))
+            }
+            Err(_) => {
+                let res = json_response_bad_message(
+                    &state,
+                    "Unexpected error detected when trying to update user.".into(),
+                );
                 Ok((state, res))
             }
         }

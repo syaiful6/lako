@@ -1,7 +1,7 @@
 version: "3"
 services:
   db:
-    image: postgres:10.13-alpine
+    image: postgres:12
     environment:
       POSTGRES_DB: lako
       POSTGRES_USER: postgres
@@ -12,9 +12,6 @@ services:
       - traefik.enable=false
   mailhog:
     image: mailhog/mailhog:v1.0.0
-    networks:
-      - dock-net
-      - default
     labels:
       - traefik.http.routers.mailhog.rule=Host(`mailhog.bbox.localdev`)
       - traefik.http.routers.mailhog.entrypoints=http
@@ -35,9 +32,6 @@ services:
       SMTP_PASSWORD: "secret"
       SMTP_SERVER: "mailhog"
       SMTP_PORT: "1025"
-    networks:
-      - dock-net
-      - default
     depends_on:
       - db
     volumes:
@@ -57,7 +51,7 @@ volumes:
   cargo_cache:
   target_cache:
 networks:
-  dock-net:
+  default:
     external:
       name: dock-net
 

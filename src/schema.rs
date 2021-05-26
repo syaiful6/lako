@@ -5,8 +5,14 @@ table! {
         name -> Varchar,
         email -> Varchar,
         company_name -> Varchar,
-        phone_number -> Varchar,
-        company_website -> Varchar,
+        address_1 -> Varchar,
+        address_2 -> Varchar,
+        city -> Varchar,
+        state -> Varchar,
+        zip_code -> Varchar,
+        country -> Varchar,
+        website -> Varchar,
+        notes -> Text,
         created_at -> Timestamp,
         updated_at -> Timestamp,
     }
@@ -39,8 +45,4 @@ table! {
 joinable!(clients -> users (user_id));
 joinable!(emails -> users (user_id));
 
-allow_tables_to_appear_in_same_query!(
-    clients,
-    emails,
-    users,
-);
+allow_tables_to_appear_in_same_query!(clients, emails, users,);

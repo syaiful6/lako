@@ -13,12 +13,18 @@ use crate::routes::utils::{extract_json, json_response_bad_message, json_respons
 
 #[derive(Debug, Deserialize, Validate)]
 struct NewClientRequest {
-    name: String,
+    pub name: String,
     #[validate(email)]
-    email: String,
-    company_name: String,
-    phone_number: String,
-    company_website: String,
+    pub email: String,
+    pub company_name: String,
+    pub address_1: String,
+    pub address_2: String,
+    pub city: String,
+    pub state: String,
+    pub zip_code: String,
+    pub country: String,
+    pub website: String,
+    pub notes: String,
 }
 
 /// serve POST /api/v1/clients
@@ -44,8 +50,14 @@ pub fn create_client_handler(mut state: State) -> Pin<Box<HandlerFuture>> {
                         name: new_client.name,
                         email: new_client.email,
                         company_name: new_client.company_name,
-                        phone_number: new_client.phone_number,
-                        company_website: new_client.company_website,
+                        address_1: new_client.address_1,
+                        address_2: new_client.address_2,
+                        city: new_client.city,
+                        state: new_client.state,
+                        zip_code: new_client.zip_code,
+                        country: new_client.country,
+                        notes: new_client.notes,
+                        website: new_client.website,
                     },
                 )
             })

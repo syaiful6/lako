@@ -15,8 +15,14 @@ pub struct Client {
     pub name: String,
     pub email: String,
     pub company_name: String,
-    pub phone_number: String,
-    pub company_website: String,
+    pub address_1: String,
+    pub address_2: String,
+    pub city: String,
+    pub state: String,
+    pub zip_code: String,
+    pub country: String,
+    pub website: String,
+    pub notes: String,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
 }
@@ -28,8 +34,14 @@ pub struct NewClient {
     pub name: String,
     pub email: String,
     pub company_name: String,
-    pub phone_number: String,
-    pub company_website: String,
+    pub address_1: String,
+    pub address_2: String,
+    pub city: String,
+    pub state: String,
+    pub zip_code: String,
+    pub country: String,
+    pub website: String,
+    pub notes: String,
 }
 
 /// insert a client

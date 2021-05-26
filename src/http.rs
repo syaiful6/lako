@@ -9,7 +9,7 @@ use crate::auth::{get_jwt_secret_key, Claims};
 use crate::db::Repo;
 use crate::routes::auth::{
     confirm_user_email, get_user, login_user_handler, regenerate_token_and_send,
-    register_user_handler,
+    register_user_handler, user_update_detail_handler,
 };
 use crate::routes::paths::{TokenPath, UserPath};
 
@@ -49,9 +49,10 @@ pub fn router(repo: Repo) -> Router {
             // route that need to protected
             route.with_pipeline_chain(auth_chain, |route| {
                 route.get("/me").to(get_user);
+                route.patch("/me").to(user_update_detail_handler);
 
                 // scope user
-                route.scope("/user", |route| {
+                route.scope("/users", |route| {
                     route
                         .put("/:id/resend")
                         .with_path_extractor::<UserPath>()

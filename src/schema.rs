@@ -1,4 +1,18 @@
 table! {
+    clients (id) {
+        id -> Int4,
+        user_id -> Int4,
+        name -> Varchar,
+        email -> Varchar,
+        company_name -> Varchar,
+        phone_number -> Varchar,
+        company_website -> Varchar,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+table! {
     emails (id) {
         id -> Int4,
         user_id -> Int4,
@@ -22,9 +36,11 @@ table! {
     }
 }
 
+joinable!(clients -> users (user_id));
 joinable!(emails -> users (user_id));
 
 allow_tables_to_appear_in_same_query!(
+    clients,
     emails,
     users,
 );

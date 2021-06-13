@@ -45,4 +45,8 @@ table! {
 joinable!(clients -> users (user_id));
 joinable!(emails -> users (user_id));
 
-allow_tables_to_appear_in_same_query!(clients, emails, users,);
+allow_tables_to_appear_in_same_query!(
+    clients,
+    emails,
+    users,
+);

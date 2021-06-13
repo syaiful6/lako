@@ -11,8 +11,8 @@ use crate::routes::auth::{
     confirm_user_email, get_user, login_user_handler, regenerate_token_and_send,
     register_user_handler, user_update_detail_handler,
 };
-use crate::routes::clients::create_client_handler;
-use crate::routes::paths::{TokenPath, UserPath};
+use crate::routes::clients::{create_client_handler, delete_client_handler, update_client_handler};
+use crate::routes::paths::{ResourceIDPath, TokenPath};
 
 const HELLO_WORLD: &str = "Hello World!";
 
@@ -56,12 +56,21 @@ pub fn router(repo: Repo) -> Router {
                 route.scope("/users", |route| {
                     route
                         .put("/:id/resend")
-                        .with_path_extractor::<UserPath>()
+                        .with_path_extractor::<ResourceIDPath>()
                         .to(regenerate_token_and_send);
                 });
 
                 route.scope("/clients", |route| {
                     route.post("/").to(create_client_handler);
+                    route
+                        .patch("/:id")
+                        .with_path_extractor::<ResourceIDPath>()
+                        .to(update_client_handler);
+
+                    route
+                        .delete("/:id")
+                        .with_path_extractor::<ResourceIDPath>()
+                        .to(delete_client_handler);
                 })
             });
         });

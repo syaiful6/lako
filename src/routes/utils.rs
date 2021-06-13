@@ -33,6 +33,10 @@ pub fn json_response_ok<T: serde::Serialize>(state: &State, t: &T) -> Response<B
     json_response(state, t, StatusCode::OK)
 }
 
+pub fn json_response_created<T: serde::Serialize>(state: &State, t: &T) -> Response<Body> {
+    json_response(state, t, StatusCode::CREATED)
+}
+
 #[derive(Debug, Serialize)]
 struct ErrMessage {
     message: String,
@@ -40,4 +44,8 @@ struct ErrMessage {
 
 pub fn json_response_bad_message(state: &State, msg: String) -> Response<Body> {
     json_response(state, &ErrMessage { message: msg }, StatusCode::BAD_REQUEST)
+}
+
+pub fn json_response_not_found(state: &State, msg: String) -> Response<Body> {
+    json_response(state, &ErrMessage { message: msg }, StatusCode::NOT_FOUND)
 }

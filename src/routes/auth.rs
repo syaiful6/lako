@@ -13,7 +13,7 @@ use crate::models::user::{
     find_user, regenerate_email_token_and_send, register_user, try_user_login, update_user,
     verify_email_with_token, AuthenticationError, UserChanges,
 };
-use crate::routes::paths::{TokenPath, UserPath};
+use crate::routes::paths::{ResourceIDPath, TokenPath};
 use crate::routes::utils::{extract_json, json_response_bad_message, json_response_ok};
 use crate::sql_types::Role;
 
@@ -176,7 +176,7 @@ pub fn confirm_user_email(state: State) -> Pin<Box<HandlerFuture>> {
 
 /// Handles `PUT /users/:user_id/resend` route
 pub fn regenerate_token_and_send(state: State) -> Pin<Box<HandlerFuture>> {
-    let user = UserPath::borrow_from(&state);
+    let user = ResourceIDPath::borrow_from(&state);
     // get current user id
     let token = AuthorizationToken::<Claims>::borrow_from(&state);
     let current_user_id = token.0.claims.user_id();

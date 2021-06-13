@@ -6,6 +6,6 @@ pub struct TokenPath {
 }
 
 #[derive(Deserialize, StateData, StaticResponseExtender)]
-pub struct UserPath {
+pub struct ResourceIDPath {
     pub id: i32,
 }

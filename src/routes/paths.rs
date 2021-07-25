@@ -9,3 +9,9 @@ pub struct TokenPath {
 pub struct ResourceIDPath {
     pub id: i32,
 }
+
+#[derive(Deserialize, StateData, StaticResponseExtender)]
+pub struct PaginationExtractor {
+    pub per_page: Option<i64>,
+    pub page: Option<i64>,
+}

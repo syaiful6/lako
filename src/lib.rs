@@ -22,6 +22,7 @@ pub mod models;
 pub mod routes;
 pub mod schema;
 pub mod sql_types;
+pub(crate) mod sqlx;
 
 pub fn bootstrap() {
     let cfg = match config::load_configuration() {

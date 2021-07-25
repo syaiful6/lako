@@ -4,18 +4,19 @@ use gotham::helpers::http::response::create_empty_response;
 use gotham::hyper::StatusCode;
 use gotham::state::{FromState, State};
 use gotham_middleware_jwt::AuthorizationToken;
-use serde_derive::Deserialize;
+use serde_derive::{Deserialize, Serialize};
 use std::pin::Pin;
 use validator::Validate;
 
 use crate::auth::Claims;
 use crate::db::Repo;
-use crate::models::client::{delete_client, ChangeClient, NewClient};
-use crate::routes::paths::ResourceIDPath;
+use crate::models::client::{delete_client, ChangeClient, Client, NewClient};
+use crate::routes::paths::{PaginationExtractor, ResourceIDPath};
 use crate::routes::utils::{
     extract_json, json_response_bad_message, json_response_created, json_response_not_found,
     json_response_ok,
 };
+use crate::sqlx::pagination::Paginate;
 
 #[derive(Debug, Deserialize, Validate)]
 struct NewClientRequest {
@@ -155,6 +156,66 @@ pub fn delete_client_handler(state: State) -> Pin<Box<HandlerFuture>> {
                 let res = json_response_bad_message(
                     &state,
                     "Unexpected error detected when trying to update client.".into(),
+                );
+                Ok((state, res))
+            }
+        }
+    }
+    .boxed()
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct ClientPagination {
+    pub total_pages: i64,
+    pub results: Vec<Client>,
+}
+
+/// serve GET /api/v1/clients
+pub fn list_client_handler(state: State) -> Pin<Box<HandlerFuture>> {
+    let token = AuthorizationToken::<Claims>::borrow_from(&state);
+    let current_user_id = token.0.claims.user_id();
+    let (per_page, page) = {
+        let res = PaginationExtractor::borrow_from(&state);
+        (res.per_page, res.page.unwrap_or(1))
+    };
+    let repo = Repo::borrow_from(&state).clone();
+
+    async move {
+        let result = repo
+            .run(move |mut conn| {
+                use crate::schema::clients;
+                use crate::schema::clients::dsl::*;
+                use diesel::prelude::*;
+
+                let mut query = clients::table
+                    .order(created_at.desc())
+                    .filter(user_id.eq(current_user_id))
+                    .paginate(page);
+
+                if let Some(per_page) = per_page {
+                    use std::cmp::min;
+                    query = query.per_page(min(per_page, 100));
+                }
+
+                query.load_and_count_pages::<Client>(&mut conn)
+            })
+            .await;
+
+        match result {
+            Ok((clients, total_pages)) => {
+                let res = json_response_ok(
+                    &state,
+                    &ClientPagination {
+                        total_pages,
+                        results: clients,
+                    },
+                );
+                Ok((state, res))
+            }
+            Err(_) => {
+                let res = json_response_bad_message(
+                    &state,
+                    "Unexpected error detected when trying to get clients".into(),
                 );
                 Ok((state, res))
             }

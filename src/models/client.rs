@@ -68,8 +68,8 @@ impl NewClient {
 #[table_name = "clients"]
 pub struct ChangeClient {
     pub user_id: Option<i32>,
-    #[validate(email)]
     pub name: Option<String>,
+    #[validate(email)]
     pub email: Option<String>,
     pub company_name: Option<String>,
     pub address_1: Option<String>,
@@ -99,4 +99,15 @@ impl ChangeClient {
 
         Ok(client)
     }
+}
+
+#[derive(Debug, Queryable, Identifiable, Associations, Serialize, Deserialize)]
+#[table_name = "clients"]
+pub struct CompactClient {
+    pub id: i32,
+    pub name: String,
+    pub email: String,
+    pub company_name: String,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
 }

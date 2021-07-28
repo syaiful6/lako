@@ -14,4 +14,5 @@ pub struct ResourceIDPath {
 pub struct PaginationExtractor {
     pub per_page: Option<i64>,
     pub page: Option<i64>,
+    pub q: Option<String>,
 }

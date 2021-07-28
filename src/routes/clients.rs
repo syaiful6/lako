@@ -10,7 +10,7 @@ use validator::Validate;
 
 use crate::auth::Claims;
 use crate::db::Repo;
-use crate::models::client::{delete_client, ChangeClient, Client, NewClient};
+use crate::models::client::{delete_client, CompactClient, ChangeClient, NewClient};
 use crate::routes::paths::{PaginationExtractor, ResourceIDPath};
 use crate::routes::utils::{
     extract_json, json_response_bad_message, json_response_created, json_response_not_found,
@@ -167,16 +167,16 @@ pub fn delete_client_handler(state: State) -> Pin<Box<HandlerFuture>> {
 #[derive(Debug, Serialize, Deserialize)]
 struct ClientPagination {
     pub total_pages: i64,
-    pub results: Vec<Client>,
+    pub results: Vec<CompactClient>,
 }
 
 /// serve GET /api/v1/clients
-pub fn list_client_handler(state: State) -> Pin<Box<HandlerFuture>> {
+pub fn list_client_handler(mut state: State) -> Pin<Box<HandlerFuture>> {
     let token = AuthorizationToken::<Claims>::borrow_from(&state);
     let current_user_id = token.0.claims.user_id();
-    let (per_page, page) = {
-        let res = PaginationExtractor::borrow_from(&state);
-        (res.per_page, res.page.unwrap_or(1))
+    let (per_page, page, search) = {
+        let res = PaginationExtractor::take_from(&mut state);
+        (res.per_page, res.page.unwrap_or(1), res.q)
     };
     let repo = Repo::borrow_from(&state).clone();
 
@@ -190,14 +190,28 @@ pub fn list_client_handler(state: State) -> Pin<Box<HandlerFuture>> {
                 let mut query = clients::table
                     .order(created_at.desc())
                     .filter(user_id.eq(current_user_id))
-                    .paginate(page);
+                    .select((
+                            id,
+                            name,
+                            email,
+                            company_name,
+                            created_at,
+                            updated_at,
+                    ))
+                    .into_boxed();
+
+                if let Some(search) = search {
+                    query = query.filter(name.ilike(format!("{}%", search)));
+                }
+
+                let mut queryx = query.paginate(page);
 
                 if let Some(per_page) = per_page {
                     use std::cmp::min;
-                    query = query.per_page(min(per_page, 100));
+                    queryx = queryx.per_page(min(per_page, 100));
                 }
 
-                query.load_and_count_pages::<Client>(&mut conn)
+                queryx.load_and_count_pages::<CompactClient>(&mut conn)
             })
             .await;
 

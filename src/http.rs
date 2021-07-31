@@ -14,6 +14,9 @@ use crate::routes::auth::{
 use crate::routes::clients::{
     create_client_handler, delete_client_handler, list_client_handler, update_client_handler,
 };
+use crate::routes::companies::{
+    create_company_handler, delete_company_handler, list_company_handler, update_company_handler,
+};
 use crate::routes::paths::{PaginationExtractor, ResourceIDPath, TokenPath};
 
 const HELLO_WORLD: &str = "Hello World!";
@@ -78,6 +81,24 @@ pub fn router(repo: Repo) -> Router {
                         .delete("/:id")
                         .with_path_extractor::<ResourceIDPath>()
                         .to(delete_client_handler);
+                });
+
+                route.scope("/companies", |route| {
+                    route.post("/").to(create_company_handler);
+                    route
+                        .get("/")
+                        .with_query_string_extractor::<PaginationExtractor>()
+                        .to(list_company_handler);
+
+                    route
+                        .patch("/:id")
+                        .with_path_extractor::<ResourceIDPath>()
+                        .to(update_company_handler);
+
+                    route
+                        .delete("/:id")
+                        .with_path_extractor::<ResourceIDPath>()
+                        .to(delete_company_handler);
                 })
             });
         });

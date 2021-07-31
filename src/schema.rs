@@ -19,6 +19,22 @@ table! {
 }
 
 table! {
+    companies (id) {
+        id -> Int4,
+        user_id -> Int4,
+        name -> Varchar,
+        address_1 -> Varchar,
+        address_2 -> Varchar,
+        city -> Varchar,
+        state -> Varchar,
+        zip_code -> Varchar,
+        country -> Varchar,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+table! {
     emails (id) {
         id -> Int4,
         user_id -> Int4,
@@ -43,6 +59,7 @@ table! {
 }
 
 joinable!(clients -> users (user_id));
+joinable!(companies -> users (user_id));
 joinable!(emails -> users (user_id));
 
-allow_tables_to_appear_in_same_query!(clients, emails, users,);
+allow_tables_to_appear_in_same_query!(clients, companies, emails, users,);

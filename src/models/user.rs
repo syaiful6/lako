@@ -92,7 +92,7 @@ pub fn find_user(conn: &PgConnection, id: i32) -> Result<Option<User>, Authentic
             users::profile_name,
             users::profile_image,
         ))
-        .first::<User>(conn)
+        .first::<User>(&*conn)
         .optional()
         .map_err(AuthenticationError::DatabaseError)
 }
@@ -114,7 +114,7 @@ pub fn try_user_login(
             ),
             users::hashed_password,
         ))
-        .first::<UserWithPassword>(conn)
+        .first::<UserWithPassword>(&*conn)
         .optional()
         .map_err(AuthenticationError::DatabaseError)?;
 
@@ -157,7 +157,7 @@ pub fn register_user(
                 users::profile_name,
                 users::profile_image,
             ))
-            .get_result::<User>(conn)
+            .get_result::<User>(&*conn)
             .map_err(AuthenticationError::DatabaseError)?;
 
         let new_email = NewEmail {
@@ -169,7 +169,7 @@ pub fn register_user(
             .values(&new_email)
             .on_conflict_do_nothing()
             .returning(emails::token)
-            .get_result::<String>(conn)
+            .get_result::<String>(&*conn)
             .optional()?;
 
         if let Some(token) = token {
@@ -193,7 +193,7 @@ pub fn regenerate_email_token_and_send(
         if let Some(user) = user {
             let email = update(Email::belonging_to(&user))
                 .set(emails::token.eq(sql("DEFAULT")))
-                .get_result::<Email>(conn)
+                .get_result::<Email>(&*conn)
                 .map_err(AuthenticationError::DatabaseError)?;
 
             crate::email::send_user_confirm_email(&email.email, &user.username, &email.token);
@@ -214,7 +214,7 @@ pub fn verify_email_with_token(
 
     let updated_rows = update(emails::table.filter(emails::token.eq(token)))
         .set(emails::verified.eq(true))
-        .execute(conn)
+        .execute(&*conn)
         .map_err(AuthenticationError::DatabaseError)?;
 
     Ok(updated_rows > 0)
@@ -241,8 +241,33 @@ pub fn update_user(
     let user = update(users.find(user_id))
         .set(user)
         .returning((id, role, username, profile_name, profile_image))
-        .get_result::<User>(conn)
+        .get_result::<User>(&*conn)
         .map_err(AuthenticationError::DatabaseError)?;
 
     Ok(user)
+}
+
+pub fn user_verified_email(
+    conn: &PgConnection,
+    user_id: i32,
+) -> Result<Option<String>, AuthenticationError> {
+    emails::table
+        .select(emails::email)
+        .filter(emails::user_id.eq(user_id))
+        .filter(emails::verified.eq(true))
+        .first(&*conn)
+        .optional()
+        .map_err(AuthenticationError::DatabaseError)
+}
+
+pub fn user_email(
+    conn: &PgConnection,
+    user_id: i32,
+) -> Result<Option<String>, AuthenticationError> {
+    emails::table
+        .select(emails::email)
+        .filter(emails::user_id.eq(user_id))
+        .first(&*conn)
+        .optional()
+        .map_err(AuthenticationError::DatabaseError)
 }

@@ -10,7 +10,7 @@ use validator::Validate;
 
 use crate::auth::Claims;
 use crate::db::Repo;
-use crate::models::client::{delete_client, CompactClient, ChangeClient, NewClient};
+use crate::models::client::{delete_client, ChangeClient, CompactClient, NewClient};
 use crate::routes::paths::{PaginationExtractor, ResourceIDPath};
 use crate::routes::utils::{
     extract_json, json_response_bad_message, json_response_created, json_response_not_found,
@@ -190,14 +190,7 @@ pub fn list_client_handler(mut state: State) -> Pin<Box<HandlerFuture>> {
                 let mut query = clients::table
                     .order(created_at.desc())
                     .filter(user_id.eq(current_user_id))
-                    .select((
-                            id,
-                            name,
-                            email,
-                            company_name,
-                            created_at,
-                            updated_at,
-                    ))
+                    .select((id, name, email, company_name, created_at, updated_at))
                     .into_boxed();
 
                 if let Some(search) = search {

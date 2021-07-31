@@ -34,7 +34,7 @@ pub fn delete_client(client_id: i32, owner_id: i32, conn: &PgConnection) -> Resu
 
     delete(clients.find(client_id))
         .filter(user_id.eq(owner_id))
-        .execute(conn)
+        .execute(&*conn)
 }
 
 #[derive(Debug, Insertable, Serialize, Deserialize)]
@@ -58,7 +58,7 @@ impl NewClient {
     pub fn insert_client(self, conn: &PgConnection) -> Result<Client, Error> {
         let client = insert_into(crate::schema::clients::table)
             .values(&self)
-            .get_result::<Client>(conn)?;
+            .get_result::<Client>(&*conn)?;
 
         Ok(client)
     }
@@ -95,7 +95,7 @@ impl ChangeClient {
         let client = update(clients.find(client_id))
             .filter(user_id.eq(owner_id))
             .set(&self)
-            .get_result::<Client>(conn)?;
+            .get_result::<Client>(&*conn)?;
 
         Ok(client)
     }

@@ -1,3 +1,4 @@
 /target
 /alon/target
 **/*.rs.bk
+.DS_Store

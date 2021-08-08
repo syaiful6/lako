@@ -17,6 +17,7 @@ use crate::routes::clients::{
 use crate::routes::companies::{
     create_company_handler, delete_company_handler, list_company_handler, update_company_handler,
 };
+use crate::routes::invoices::create_invoice_handler;
 use crate::routes::paths::{PaginationExtractor, ResourceIDPath, TokenPath};
 
 const HELLO_WORLD: &str = "Hello World!";
@@ -99,6 +100,10 @@ pub fn router(repo: Repo) -> Router {
                         .delete("/:id")
                         .with_path_extractor::<ResourceIDPath>()
                         .to(delete_company_handler);
+                });
+
+                route.scope("/invoices", |route| {
+                    route.post("/").to(create_invoice_handler);
                 })
             });
         });

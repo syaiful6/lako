@@ -46,6 +46,17 @@ table! {
 }
 
 table! {
+    invoice_items (id) {
+        id -> Int4,
+        invoice_id -> Int4,
+        name -> Varchar,
+        description -> Text,
+        amount -> Numeric,
+        quantity -> Numeric,
+    }
+}
+
+table! {
     invoices (id) {
         id -> Int4,
         user_id -> Int4,
@@ -84,14 +95,9 @@ table! {
 joinable!(clients -> users (user_id));
 joinable!(companies -> users (user_id));
 joinable!(emails -> users (user_id));
+joinable!(invoice_items -> invoices (invoice_id));
 joinable!(invoices -> clients (client_id));
 joinable!(invoices -> companies (company_id));
 joinable!(invoices -> users (user_id));
 
-allow_tables_to_appear_in_same_query!(
-    clients,
-    companies,
-    emails,
-    invoices,
-    users,
-);
+allow_tables_to_appear_in_same_query!(clients, companies, emails, invoice_items, invoices, users,);

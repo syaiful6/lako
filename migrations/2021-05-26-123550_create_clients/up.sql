@@ -17,4 +17,7 @@ CREATE TABLE clients (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE INDEX idx_clients_user_id_fk ON clients(user_id);
+CREATE INDEX idx_clients_email ON clients(email);
+
 SELECT diesel_manage_updated_at('clients');

@@ -8,6 +8,7 @@ use crate::schema::emails;
 pub struct Email {
     pub id: i32,
     pub user_id: i32,
+    pub is_primary: bool,
     pub email: String,
     pub token: String,
     pub verified: bool,
@@ -19,4 +20,5 @@ pub struct Email {
 pub struct NewEmail<'a> {
     pub user_id: i32,
     pub email: &'a str,
+    pub is_primary: bool,
 }

@@ -12,6 +12,7 @@ $$ LANGUAGE SQL;
 CREATE table emails (
   id                 SERIAL PRIMARY KEY,
   user_id            INTEGER NOT NULL REFERENCES users,
+  is_primary         BOOLEAN NOT NULL DEFAULT false,
   email              VARCHAR NOT NULL UNIQUE,
   token              TEXT NOT NULL DEFAULT lako_random_string(26),
   verified           BOOLEAN NOT NULL DEFAULT false,

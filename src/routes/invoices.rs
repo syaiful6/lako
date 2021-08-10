@@ -6,6 +6,7 @@ use gotham_middleware_jwt::AuthorizationToken;
 use rust_decimal::Decimal;
 use serde_derive::{Deserialize, Serialize};
 use std::pin::Pin;
+use uuid::Uuid;
 use validator::Validate;
 
 use crate::auth::Claims;
@@ -67,6 +68,7 @@ pub fn create_invoice_handler(mut state: State) -> Pin<Box<HandlerFuture>> {
                     }
                 };
                 let new_invoice = NewInvoice {
+                    invoice_id: Uuid::new_v4(),
                     user_id: current_user_id,
                     client_id: create_invoice_req.client_id,
                     company_id: create_invoice_req.company_id,

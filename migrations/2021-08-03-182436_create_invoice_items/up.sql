@@ -7,3 +7,5 @@ CREATE TABLE invoice_items(
     amount DECIMAL(30, 2) NOT NULL DEFAULT 0,
     quantity DECIMAL(12, 2) NOT NULL DEFAULT 0
 );
+
+CREATE INDEX idx_invoice_items_invoice_id_fk ON invoice_items(invoice_id);

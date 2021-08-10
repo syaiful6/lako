@@ -1,13 +1,13 @@
-use std::error;
-use std::fmt;
-
 use crate::models::email::{Email, NewEmail};
 use crate::schema::{emails, users};
 use crate::sql_types::Role;
 use bcrypt::{hash as bcrypt_hash, verify as bcrypt_verify, BcryptError, DEFAULT_COST};
+use chrono::NaiveDateTime;
 use diesel::prelude::*;
 use diesel::{self, insert_into};
 use serde_derive::{Deserialize, Serialize};
+use std::error;
+use std::fmt;
 
 #[derive(Debug)]
 pub enum AuthenticationError {
@@ -73,6 +73,9 @@ pub struct User {
     pub username: String,
     pub profile_name: String,
     pub profile_image: String,
+    pub last_sign_in_at: Option<NaiveDateTime>,
+    pub joined_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
 }
 
 // user with credential
@@ -91,6 +94,9 @@ pub fn find_user(conn: &PgConnection, id: i32) -> Result<Option<User>, Authentic
             users::username,
             users::profile_name,
             users::profile_image,
+            users::last_sign_in_at,
+            users::joined_at,
+            users::updated_at,
         ))
         .first::<User>(&*conn)
         .optional()
@@ -111,6 +117,9 @@ pub fn try_user_login(
                 users::username,
                 users::profile_name,
                 users::profile_image,
+                users::last_sign_in_at,
+                users::joined_at,
+                users::updated_at,
             ),
             users::hashed_password,
         ))
@@ -120,6 +129,9 @@ pub fn try_user_login(
 
     if let Some(user_and_password) = user_and_password {
         if bcrypt_verify(password, &user_and_password.password)? {
+            diesel::update(users::table.find(user_and_password.user.id))
+                .set(users::last_sign_in_at.eq(diesel::expression::dsl::now))
+                .execute(conn)?;
             Ok(Some(user_and_password.user))
         } else {
             Err(IncorrectPassword)
@@ -156,6 +168,9 @@ pub fn register_user(
                 users::username,
                 users::profile_name,
                 users::profile_image,
+                users::last_sign_in_at,
+                users::joined_at,
+                users::updated_at,
             ))
             .get_result::<User>(&*conn)
             .map_err(AuthenticationError::DatabaseError)?;
@@ -163,6 +178,7 @@ pub fn register_user(
         let new_email = NewEmail {
             email: email,
             user_id: user.id,
+            is_primary: true,
         };
 
         let token = insert_into(emails::table)
@@ -240,7 +256,16 @@ pub fn update_user(
 
     let user = update(users.find(user_id))
         .set(user)
-        .returning((id, role, username, profile_name, profile_image))
+        .returning((
+            id,
+            role,
+            username,
+            profile_name,
+            profile_image,
+            last_sign_in_at,
+            joined_at,
+            updated_at,
+        ))
         .get_result::<User>(&*conn)
         .map_err(AuthenticationError::DatabaseError)?;
 

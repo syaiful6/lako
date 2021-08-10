@@ -38,6 +38,7 @@ table! {
     emails (id) {
         id -> Int4,
         user_id -> Int4,
+        is_primary -> Bool,
         email -> Varchar,
         token -> Text,
         verified -> Bool,
@@ -59,6 +60,7 @@ table! {
 table! {
     invoices (id) {
         id -> Int4,
+        invoice_id -> Uuid,
         user_id -> Int4,
         client_id -> Int4,
         company_id -> Int4,
@@ -87,6 +89,7 @@ table! {
         hashed_password -> Varchar,
         profile_name -> Varchar,
         profile_image -> Varchar,
+        last_sign_in_at -> Nullable<Timestamp>,
         joined_at -> Timestamp,
         updated_at -> Timestamp,
     }
@@ -100,4 +103,11 @@ joinable!(invoices -> clients (client_id));
 joinable!(invoices -> companies (company_id));
 joinable!(invoices -> users (user_id));
 
-allow_tables_to_appear_in_same_query!(clients, companies, emails, invoice_items, invoices, users,);
+allow_tables_to_appear_in_same_query!(
+    clients,
+    companies,
+    emails,
+    invoice_items,
+    invoices,
+    users,
+);

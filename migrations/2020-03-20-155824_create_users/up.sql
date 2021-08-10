@@ -6,6 +6,7 @@ CREATE TABLE users (
   hashed_password   VARCHAR NOT NULL,
   profile_name      VARCHAR(255) NOT NULL,
   profile_image     VARCHAR(255) NOT NULL,
+  last_sign_in_at   TIMESTAMP NULL DEFAULT NULL,
   joined_at         TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

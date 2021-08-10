@@ -3,6 +3,7 @@ use diesel::prelude::*;
 use diesel::result::Error;
 use diesel::{self, insert_into};
 use rust_decimal::Decimal;
+use uuid::Uuid;
 
 use crate::models::client::Client;
 use crate::schema::{invoice_items, invoices};
@@ -13,6 +14,7 @@ use serde_derive::{Deserialize, Serialize};
 #[belongs_to(Client)]
 pub struct Invoice {
     pub id: i32,
+    pub invoice_id: Uuid,
     pub user_id: i32,
     pub client_id: i32,
     pub company_id: i32,
@@ -35,6 +37,7 @@ pub struct Invoice {
 #[derive(Debug, Insertable, Serialize, Deserialize)]
 #[table_name = "invoices"]
 pub struct NewInvoice {
+    pub invoice_id: Uuid,
     pub user_id: i32,
     pub client_id: i32,
     pub company_id: i32,

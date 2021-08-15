@@ -1,6 +1,7 @@
-use chrono::NaiveDateTime;
+use chrono::{Datelike, NaiveDateTime, Utc};
 use diesel::prelude::*;
 use diesel::result::Error;
+use diesel::sql_types::{Int4, Timestamp, VarChar};
 use diesel::{self, insert_into};
 use rust_decimal::Decimal;
 use uuid::Uuid;
@@ -75,6 +76,10 @@ pub struct NewInvoiceItem {
     pub quantity: Decimal,
 }
 
+sql_function! {
+    fn date_part(x: VarChar, y: Timestamp) -> Int4;
+}
+
 impl Invoice {
     // insert new invoice, the amount of invoice should already calculated correctly
     pub fn insert(
@@ -105,5 +110,21 @@ impl Invoice {
                 Ok((invoice, Vec::new()))
             }
         })
+    }
+
+    pub fn get_next_invoice_number(
+        user_id: i32,
+        client_id: i32,
+        conn: &PgConnection,
+    ) -> Result<String, Error> {
+        let current_year = Utc::now().naive_utc().year();
+        let count = invoices::table
+            .select(diesel::dsl::count(invoices::id))
+            .filter(invoices::user_id.eq(user_id))
+            .filter(invoices::client_id.eq(client_id))
+            .filter(date_part("year", invoices::created_at).eq(current_year))
+            .get_result::<i64>(conn)?;
+
+        Ok(format!("{}/{}", current_year, count + 1))
     }
 }

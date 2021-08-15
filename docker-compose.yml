@@ -10,6 +10,7 @@ services:
       - postgres_data:/var/lib/postgresql
     labels:
       - traefik.enable=false
+    command: ["postgres", "-c", "log_statement=all"]
   mailhog:
     image: mailhog/mailhog:v1.0.0
     labels:
@@ -32,6 +33,7 @@ services:
       SMTP_PASSWORD: "secret"
       SMTP_SERVER: "mailhog"
       SMTP_PORT: "1025"
+      SMT_USE_SSL: "no"
     depends_on:
       - db
     volumes:

@@ -22,8 +22,6 @@ pub struct CreateInvoiceRequest {
     pub invoice_number: Option<String>,
     pub description: String,
     pub currency: String,
-    pub status: InvoiceStatus,
-    pub billing_reason: BillingReason,
     pub due_date: Option<NaiveDateTime>,
     pub invoice_date: Option<NaiveDateTime>,
     pub balance: Option<Decimal>,
@@ -64,7 +62,11 @@ pub fn create_invoice_handler(mut state: State) -> Pin<Box<HandlerFuture>> {
                     Some(invoice_number) => invoice_number,
                     None => {
                         // TODO: generate invoice number
-                        "2021/04".to_owned()
+                        Invoice::get_next_invoice_number(
+                            current_user_id,
+                            create_invoice_req.client_id,
+                            &conn,
+                        )?
                     }
                 };
                 let new_invoice = NewInvoice {
@@ -75,8 +77,8 @@ pub fn create_invoice_handler(mut state: State) -> Pin<Box<HandlerFuture>> {
                     invoice_number: invoice_number,
                     description: create_invoice_req.description,
                     currency: create_invoice_req.currency,
-                    status: create_invoice_req.status,
-                    billing_reason: create_invoice_req.billing_reason,
+                    status: InvoiceStatus::Draft,
+                    billing_reason: BillingReason::Manual,
                     due_date: create_invoice_req.due_date,
                     invoice_date: create_invoice_req.invoice_date,
                     amount: invoice_amount,

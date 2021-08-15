@@ -13,4 +13,6 @@ CREATE TABLE companies (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE INDEX idx_company_user_id_fk ON companies(user_id);
+
 SELECT diesel_manage_updated_at('companies');

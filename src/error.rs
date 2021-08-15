@@ -1,6 +1,7 @@
 use bcrypt::BcryptError;
-use std::error::Error as StdError;
-use std::fmt::{self, Display};
+use lettre::smtp::error::Error as SmtpError;
+use lettre_email::error::Error as LettreEmailError;
+use native_tls::Error as NativeTlsError;
 use std::io;
 use thiserror::Error as ThisError;
 
@@ -17,6 +18,18 @@ pub enum AppError {
 
     #[error("JSON Error: `{0}`")]
     JSONDecode(#[from] serde_json::Error),
+
+    #[error("SMTP Error: `{0}`")]
+    LettreSMTPError(#[from] SmtpError),
+
+    #[error("LettreEmail Error: `{0}`")]
+    LettreEmailError(#[from] LettreEmailError),
+
+    #[error("NativeTlsError error: `{0}`")]
+    NativeTlsError(#[from] NativeTlsError),
+
+    #[error("Invalid config error")]
+    InvalidConfig,
 }
 
 pub type AppResult<T> = Result<T, AppError>;

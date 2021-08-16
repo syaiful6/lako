@@ -55,6 +55,25 @@ pub struct NewInvoice {
     pub tax: Option<Decimal>,
 }
 
+#[derive(AsChangeset, Serialize, Deserialize)]
+#[table_name = "invoices"]
+pub struct ChangeInvoice {
+    pub user_id: Option<i32>,
+    pub client_id: Option<i32>,
+    pub company_id: Option<i32>,
+    pub invoice_number: Option<String>,
+    pub description: Option<String>,
+    pub currency: Option<String>,
+    pub status: Option<InvoiceStatus>,
+    pub billing_reason: Option<BillingReason>,
+    pub due_date: Option<NaiveDateTime>,
+    pub invoice_date: Option<NaiveDateTime>,
+    pub amount: Option<Decimal>,
+    pub balance: Option<Decimal>,
+    pub discount: Option<Decimal>,
+    pub tax: Option<Decimal>,
+}
+
 #[derive(Debug, Queryable, Identifiable, Associations, Serialize, Deserialize)]
 #[table_name = "invoice_items"]
 pub struct InvoiceItem {
@@ -81,7 +100,7 @@ sql_function! {
 }
 
 impl Invoice {
-    // insert new invoice, the amount of invoice should already calculated correctly
+    /// insert new invoice, the amount of invoice should already calculated correctly
     pub fn insert(
         invoice: &NewInvoice,
         items: Vec<NewInvoiceItem>,
@@ -112,6 +131,7 @@ impl Invoice {
         })
     }
 
+    /// Get next invoice number for the given user_id and client_id
     pub fn get_next_invoice_number(
         user_id: i32,
         client_id: i32,
@@ -125,6 +145,61 @@ impl Invoice {
             .filter(date_part("year", invoices::created_at).eq(current_year))
             .get_result::<i64>(conn)?;
 
-        Ok(format!("{}/{}", current_year, count + 1))
+        Ok(format!("{}/{:03}", current_year, count + 1))
+    }
+
+    pub fn update(
+        primary_id: i32,
+        changes: &ChangeInvoice,
+        conn: &PgConnection,
+    ) -> Result<Invoice, Error> {
+        use crate::schema::invoices::dsl::*;
+        use diesel::update;
+
+        update(invoices.find(primary_id))
+            .set(changes)
+            .returning((
+                id,
+                invoice_id,
+                user_id,
+                client_id,
+                company_id,
+                invoice_number,
+                description,
+                currency,
+                status,
+                billing_reason,
+                due_date,
+                invoice_date,
+                last_send_date,
+                amount,
+                balance,
+                discount,
+                tax,
+                created_at,
+                updated_at,
+            ))
+            .get_result::<Invoice>(conn)
+    }
+
+    /// Recalculate invoice amount
+    pub fn recalculate_amount(invoice_id: i32, conn: &PgConnection) -> Result<Decimal, Error> {
+        conn.transaction(|| {
+            use crate::schema::invoices::dsl::{amount, invoices};
+            use diesel::update;
+
+            let items = invoice_items::table
+                .select((invoice_items::amount, invoice_items::quantity))
+                .filter(invoice_items::invoice_id.eq(invoice_id))
+                .get_results::<(Decimal, Decimal)>(conn)?;
+
+            let item_total = items.into_iter().map(|item| item.0 * item.1).sum();
+
+            update(invoices.find(invoice_id))
+                .set(amount.eq(item_total))
+                .execute(conn)?;
+
+            Ok(item_total)
+        })
     }
 }

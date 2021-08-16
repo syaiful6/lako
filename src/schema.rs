@@ -103,11 +103,4 @@ joinable!(invoices -> clients (client_id));
 joinable!(invoices -> companies (company_id));
 joinable!(invoices -> users (user_id));
 
-allow_tables_to_appear_in_same_query!(
-    clients,
-    companies,
-    emails,
-    invoice_items,
-    invoices,
-    users,
-);
+allow_tables_to_appear_in_same_query!(clients, companies, emails, invoice_items, invoices, users,);

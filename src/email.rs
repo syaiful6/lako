@@ -94,16 +94,18 @@ fn create_smtp_transport() -> Result<SmtpTransport, AppError> {
     let smtp_config = init_smtp_config_vars();
     match smtp_config {
         Some(smtp_config) => {
+            let tls_parameters = {
+                let tls_connector = TlsConnector::builder()
+                    .min_protocol_version(Some(DEFAULT_TLS_PROTOCOLS[0]))
+                    .build()?;
+                let domain = smtp_config.server.to_owned();
+                ClientTlsParameters::new(domain, tls_connector)
+            };
             let security = {
                 if smtp_use_ssl() {
-                    let tls_connector = TlsConnector::builder()
-                        .min_protocol_version(Some(DEFAULT_TLS_PROTOCOLS[0]))
-                        .build()?;
-
-                    let domain = smtp_config.server.to_owned();
-                    ClientSecurity::Required(ClientTlsParameters::new(domain, tls_connector))
+                    ClientSecurity::Required(tls_parameters)
                 } else {
-                    ClientSecurity::None
+                    ClientSecurity::Opportunistic(tls_parameters)
                 }
             };
 

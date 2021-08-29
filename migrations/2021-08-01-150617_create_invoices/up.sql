@@ -24,5 +24,6 @@ CREATE TABLE invoices (
 CREATE UNIQUE INDEX idx_invoice_id ON invoices(invoice_id);
 CREATE UNIQUE INDEX idx_invoices_client_invoice_number ON invoices(client_id, invoice_number);
 CREATE INDEX idx_users_client_fk ON invoices(user_id, client_id);
+CREATE INDEX idx_invoices_created_at ON invoices(created_at);
 
 SELECT diesel_manage_updated_at('invoices');

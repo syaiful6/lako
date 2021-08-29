@@ -3,7 +3,7 @@ use gotham::pipeline::set::{finalize_pipeline_set, new_pipeline_set};
 use gotham::router::{builder::*, Router};
 use gotham::state::State;
 use gotham_middleware_diesel::DieselMiddleware;
-use gotham_middleware_jwt::JWTMiddleware;
+use gotham_middleware_jwt::JwtMiddleware;
 
 use crate::auth::{get_jwt_secret_key, Claims};
 use crate::db::Repo;
@@ -33,7 +33,7 @@ pub fn router(repo: Repo) -> Router {
         pipelines.add(new_pipeline().add(DieselMiddleware::new(repo)).build());
     let (pipelines, authenticated) = pipelines.add(
         new_pipeline()
-            .add(JWTMiddleware::<Claims>::new(get_jwt_secret_key()))
+            .add(JwtMiddleware::<Claims>::new(get_jwt_secret_key()))
             .build(),
     );
     // finalize this

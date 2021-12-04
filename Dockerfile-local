@@ -1,4 +1,4 @@
-FROM rust:1.52-slim-buster
+FROM rust:1.56-slim-buster
 
 RUN set -ex; \
   apt-get update; \

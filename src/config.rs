@@ -60,8 +60,10 @@ pub fn load_configuration() -> Result<Config, ConfigurationError> {
         )
         .get_matches();
 
-    let address = matches.value_of("address").unwrap().to_string();
-
+    let address = match env::var("PORT") {
+        Ok(val) => format!("0.0.0.0:{}", val),
+        Err(_) => matches.value_of("address").unwrap().to_string(),
+    };
     let db_url: String = match env::var("DATABASE_URL") {
         Ok(val) => val,
         Err(err) => {

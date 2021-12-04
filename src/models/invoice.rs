@@ -150,6 +150,7 @@ impl Invoice {
 
     pub fn update(
         primary_id: i32,
+        owner_id: i32,
         changes: &ChangeInvoice,
         conn: &PgConnection,
     ) -> Result<Invoice, Error> {
@@ -157,6 +158,7 @@ impl Invoice {
         use diesel::update;
 
         update(invoices.find(primary_id))
+            .filter(user_id.eq(owner_id))
             .set(changes)
             .returning((
                 id,
@@ -180,6 +182,15 @@ impl Invoice {
                 updated_at,
             ))
             .get_result::<Invoice>(conn)
+    }
+
+    pub fn delete(primary_id: i32, owner_id: i32, conn: &PgConnection) -> Result<usize, Error> {
+        use crate::schema::invoices::dsl::*;
+        use diesel::delete;
+
+        delete(invoices.find(primary_id))
+            .filter(user_id.eq(owner_id))
+            .execute(&*conn)
     }
 
     /// Recalculate invoice amount

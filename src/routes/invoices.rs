@@ -11,7 +11,8 @@ use validator::Validate;
 
 use crate::auth::Claims;
 use crate::db::Repo;
-use crate::models::invoice::{Invoice, InvoiceItem, NewInvoice, NewInvoiceItem};
+use crate::models::invoice::{ChangeInvoice, Invoice, InvoiceItem, NewInvoice, NewInvoiceItem};
+use crate::routes::paths::ResourceIDPath;
 use crate::routes::utils::{extract_json, json_response_bad_message, json_response_created};
 use crate::sqlx::invoice::{BillingReason, InvoiceStatus};
 
@@ -104,6 +105,93 @@ pub fn create_invoice_handler(mut state: State) -> Pin<Box<HandlerFuture>> {
                 let res = json_response_bad_message(
                     &state,
                     "Unexpected error when trying to insert invoices".into(),
+                );
+                Ok((state, res))
+            }
+        }
+    }
+    .boxed()
+}
+
+#[derive(Debug, Deserialize, Validate)]
+pub struct ChangeInvoiceRequest {
+    pub client_id: Option<i32>,
+    pub company_id: Option<i32>,
+    pub invoice_number: Option<String>,
+    pub description: Option<String>,
+    pub currency: Option<String>,
+    pub status: Option<InvoiceStatus>,
+    pub billing_reason: Option<BillingReason>,
+    pub due_date: Option<NaiveDateTime>,
+    pub invoice_date: Option<NaiveDateTime>,
+    pub amount: Option<Decimal>,
+    pub balance: Option<Decimal>,
+    pub discount: Option<Decimal>,
+    pub tax: Option<Decimal>,
+}
+
+/// serve PATCH /api/v1/invoices/:id
+pub fn update_invoice_handler(mut state: State) -> Pin<Box<HandlerFuture>> {
+    let token = AuthorizationToken::<Claims>::borrow_from(&state);
+    let current_user_id = token.0.claims.user_id();
+
+    let invoice_id = {
+        let res = ResourceIDPath::borrow_from(&state);
+        res.id
+    };
+    let repo = Repo::borrow_from(&state).clone();
+
+    async move {
+        let change_invoice_req = match extract_json::<ChangeInvoiceRequest>(&mut state).await {
+            Ok(change_invoice_req) => match change_invoice_req.validate() {
+                Ok(_) => change_invoice_req,
+                Err(e) => return Err((state, e.into())),
+            },
+            Err(_) => {
+                let res = json_response_bad_message(
+                    &state,
+                    "Invalid update invoice request payload".into(),
+                );
+                return Ok((state, res));
+            }
+        };
+
+        let result = repo
+            .run(move |conn| {
+                let changes = ChangeInvoice {
+                    user_id: None,
+                    client_id: change_invoice_req.client_id,
+                    company_id: change_invoice_req.company_id,
+                    invoice_number: change_invoice_req.invoice_number,
+                    description: change_invoice_req.description,
+                    currency: change_invoice_req.currency,
+                    status: change_invoice_req.status,
+                    billing_reason: change_invoice_req.billing_reason,
+                    due_date: change_invoice_req.due_date,
+                    invoice_date: change_invoice_req.invoice_date,
+                    amount: change_invoice_req.amount,
+                    balance: change_invoice_req.balance,
+                    discount: change_invoice_req.discount,
+                    tax: change_invoice_req.tax,
+                };
+
+                Invoice::update(invoice_id, current_user_id, &changes, &conn)
+            })
+            .await;
+
+        match result {
+            Ok(invoice) => {
+                #[derive(Serialize)]
+                struct R {
+                    invoice: Invoice,
+                }
+                let res = json_response_created(&state, &R { invoice });
+                Ok((state, res))
+            }
+            Err(_) => {
+                let res = json_response_bad_message(
+                    &state,
+                    "Unexpected error when trying to update invoices".into(),
                 );
                 Ok((state, res))
             }
